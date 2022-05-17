@@ -1,4 +1,3 @@
-from crypt import methods
 from flask import Flask, url_for, redirect, render_template, request
 from flask_migrate import Migrate
 from models import db, Book, Author
