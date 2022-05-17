@@ -13,7 +13,7 @@ C:\project_folder> git clone https://github.com/AdrielMendez/GeekText.git
 ```
 C:\project_folder\GeekText> pip install virtualenv
 ```
-## once virtualenv is installed run
+## once virtualenv is installed run:
 ```
 C:\project_folder\GeekText> python3 -m venv env
 ```
@@ -28,12 +28,8 @@ env.bak
 venv.bak
 to prevent it from being added to version control. (i use env)
 
-## running Flask in dev mode
-before running 'flask run' set the FLASK_ENV to development to get hot-reloading and debuging turned on.
-```
-C:\> set FLASK_ENV=development
-```
-## activating environment
+
+## activating the python environment
 ```
 # run this command everytime before working on the project
 # for Windows 
@@ -43,8 +39,26 @@ C:\project_folder\GeekText> env\Scripts\activate.bat
 $ source env/bin/activate
 ```
 Where 'env' is the name you gave your local python environment.
+# a note on pip and packages
+we'll probably going to be needing packages as we the semester progresses and our individual needs change. 
+right after adding a package you know the project will need please run:
+```
+C:...\> pip freeze > requirements.txt
+```
+this will update the requirements.txt file with all the necessary packages to successfully build the project
 
-Once you have activated your python environment run:
+now whenever you pull all you gotta do is run:
+```
+C:...\> pip install -r requirements.txt
+```
+and if there where any changes pip will download them.
+
+## running Flask in dev mode
+before running 'flask run' set the FLASK_ENV to development to get hot-reloading and debuging turned on.
+```
+C:\> set FLASK_ENV=development
+```
+Once you have activated your python python environment and set FLASK_ENV run:
 
 ```
 C:...\> flask db init
