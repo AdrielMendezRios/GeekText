@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h1>Book Details</h1>
+    <form action="/add_book" method="post">
+        <div>
+            <label>Book Title</label>
+            <input type="text" name="title" placeholder="Book title...">
+        </div>
+        <div>
+            <label>Author First Name</label>
+            <input type="text" name="author_fname" placeholder="John">
+        </div>
+        <div>
+            <label>Author Last Name</label>
+            <input type="text" name="author_lname" placeholder="Doe">
+        </div>
+        <div>
+            <label>genre</label>
+            <input type="text" name="genre" placeholder="horror...">
+        </div>
+        <div>
+            <label>ISBN</label>
+            <input type="text" name="isbn" placeholder="1-234-5678">
+        </div>
+        <div>
+            <label>Price</label>
+            $<input type="text" name="price" placeholder="35">
+        </div>
+        <div>
+            <label>Description</label>
+            <textarea rows="5" cols="50" name="description" placeholder="terrifying..."></textarea>
+        </div>
+        <div>
+            <label>Date Published</label>
+            <input type="date" name="date_published">
+        </div>
+        <div>
+            <label>Publisher</label>
+            <input type="text" name="publisher" placeholder="Penguin">
+        </div>
+        <input type="Submit" name="Add book">
+    </form>
+{% endblock content %}
+

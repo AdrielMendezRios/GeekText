@@ -1,0 +1,21 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% block head %}
+    <link rel="stylesheet" href="style.css" />
+    <title>{% block title %}{% endblock %} - Geek Text</title>
+    {% endblock %}
+</head>
+<body>
+    <div id="navbar">
+            {% for link in links %}
+                <a href={{link[0]}}>{{link[1]}}</a>
+            {% endfor %}
+
+    </div>
+    <div id="content">{% block content %}{% endblock %}</div>
+    <div id="footer">
+    </div>
+</body>
+</html>

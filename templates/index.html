@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+    <a href="/add_book">Add a book</a>
+    <h1>Our Books!</h1>
+    {% if books|length > 0 %}
+        {% for book in books  %}
+        <p>{{book.id}} | {{book}}</p>  
+        {% endfor %}
+    {% else %}
+        <h3> No books yet... come back later!</h3>
+    {% endif %}
+{% endblock content %}
