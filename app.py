@@ -21,7 +21,8 @@ db.init_app(app)
 @app.route("/")
 def home():
     books = db.session.query(Book).all()
-    return render_template("index.html", books=books)
+    authors = db.session.query(Author).all()
+    return render_template("index.html", books=books, authors=authors)
 
 """
     Adriels' TODOs:
@@ -36,7 +37,7 @@ def home():
 """
 """
 -------------------------------------------------------
-                    Book routes below
+                Book routes below
 -------------------------------------------------------
 """
 #helper function (might delete)
@@ -96,6 +97,15 @@ def book_details(isbn: str):
         db.session.commit()
         return jsonify(delete_book=book_data)
 
+# GET books by author
+@app.route("/authors/<author_id>/books", methods=['GET'])
+def books_by_author(author_id):
+    author = Author.query.get(author_id)
+    author_books = list(author.books)
+    author_name = f"{author.first_name}  {author.last_name}"
+    books = [book.as_dict() for book in author_books]
+    return jsonify(books_by_author={author_name:books})
+
 # GET ALL books
 @app.route("/books", methods=['GET'])
 def all_books():
@@ -108,7 +118,7 @@ def all_books():
 
 # PUT (update) book 
 @app.route("/books", methods=['PUT'])
-def update_book_details():
+def update_book():
     """
         This route expects to be called with HTTP method PUT
         Header:
@@ -138,23 +148,22 @@ def update_book_details():
 # DELETE book
 @app.route("/books", methods=['DELETE'])
 def delete_book():
-    
     book = Book.query.filter_by(isbn=request.json['isbn']).first()
-    if book is not None:
-        book_data = book.as_dict()
-        db.session.delete(book)
-        db.session.commit()
-        return jsonify(delete_book=book_data)
-    return jsonify(msg={"Error":f"Book with ISBN {request.json['isbn']} is not in our system"}), 404
-
-
+    
+    if book is None:
+        return jsonify(msg={"Error":f"Book with ISBN {request.json['isbn']} is not in our system"}), 404
+    
+    book_data = book.as_dict()
+    db.session.delete(book)
+    db.session.commit()
+    return jsonify(deleted_book=book_data)
 
 """
 -------------------------------------------------------
-                    Author routes below
+                Author routes below
 -------------------------------------------------------
 """
-
+# POST (create) author
 @app.route("/authors", methods=['POST'])
 def add_author(fname=None, lname=None):
     if request.method == 'POST':
@@ -167,7 +176,7 @@ def add_author(fname=None, lname=None):
             return jsonify(msg=f"Error: {e}"), 500
 
 # GET author
-@app.route("/authors/<id>", methods=['GET', 'PUT', 'DELETE'])
+@app.route("/authors/<id>", methods=['GET'])
 def author_details(id):
     author = Author.query.get(id)
     
@@ -176,18 +185,9 @@ def author_details(id):
     
     if request.method == 'GET':
         return jsonify(author=author.as_dict()), 200
-    elif request.method == 'PUT':
-        for k, v in request.json.items():
-            setattr(author, k, v)
-        db.session.commit()
-        return jsonify(author=author.as_dict()), 200
-    elif request.method == 'DELETE':
-        author_data = author.as_dict()
-        db.session.delete(author)
-        db.session.commit()
-        return jsonify(deleted_author=author_data), 200
 
-@app.route("/authors")
+# GET all authors
+@app.route("/authors", methods=['GET'])
 def all_authors():
     authors = Author.query.all()
     authors = [author.as_dict() for author in authors]
@@ -196,13 +196,48 @@ def all_authors():
     except Exception as e:
         return jsonify(msg=f"Error: {e}")
 
-@app.route("/authors/<author_id>/books", methods=['GET'])
-def books_by_author(author_id):
-    author = Author.query.get(author_id)
-    author_books = list(author.books)
-    author_name = f"{author.first_name}  {author.last_name}"
-    books = [book.as_dict() for book in author_books]
-    return jsonify(books_by_author={author_name:books})
+# PUT (update) author
+@app.route("/authors", methods=['PUT'])
+def update_author():
+    body = request.get_json()
+    author = None
+    
+    if 'id' not in body:
+        if ('first_name' and 'last_name') not in  body:
+            return jsonify(msg={"Error":f"Must provide 'id' or 'first_name' and 'last_name' attributes in request body"}), 500
+        author = Author.query.filter_by(first_name=body['first_name'], last_name=body['last_name'])
+    else:
+        author = Author.query.get(body['id'])
+    
+    if author is None:
+        return jsonify(msg={"Error":"Could not retrieve Author with provided data"}), 404
+    
+    if request.method == 'PUT':
+        for k, v in request.json.items():
+            setattr(author, k, v)
+    db.session.commit()
+    
+    return jsonify(author=author.as_dict()), 200
+
+# DELETE author
+@app.route("/authors", methods=['DELETE'])
+def delete_author():
+    body = request.get_json()
+    
+    if 'id' not in body:
+        if ('first_name' and 'last_name') not in  body:
+            return jsonify(msg={"Error":f"Must provide 'id' or 'first_name' and 'last_name' attributes in request body"}), 500
+        author = Author.query.filter_by(first_name=body['first_name'], last_name=body['last_name'])
+    else:
+        author = Author.query.get(body['id'])
+    
+    if author is None:
+        return jsonify(msg={"Error":"Could not retrieve Author with provided data"}), 404
+    
+    author_data = author.as_dict()
+    db.session.delete(author)
+    db.session.commit()
+    return jsonify(deleted_author=author_data), 200
 
 @app.errorhandler(500)
 def internal_error(error):
