@@ -17,6 +17,7 @@ migrate = Migrate(app, db, render_as_batch=True)
 
 db.init_app(app)
 
+
 @app.route("/")
 def home():
     books = db.session.query(Book).all()
@@ -33,25 +34,42 @@ def home():
         last name, biography and publisher
     [~] Must be able to retrieve a list of books associate with an author
 """
-def isvalidate_isbn(isbn: str):
-    book = Book.query.filter_by(isbn=isbn).all()
+"""
+-------------------------------------------------------
+                    Book routes below
+-------------------------------------------------------
+"""
+#helper function (might delete)
+def isvalid_isbn(isbn: str):
+    book = Book.query.filter_by(isbn=isbn).first()
     if book is not None:
-        return False
-    isbn_cleaned = isbn.translate({ord("-"):None, ord(" "): None })
-    if isbn_cleaned.isalnum(): # MUST SWITCH TO .isnumeric() 
-        return True
-    return False
+        return False, {"type: ":"exists", "Error": f"Book with ISBN: {isbn} already exists"}
     
-@app.route("/add_book", methods=['POST'])
+    isbn_cleaned = isbn.translate({ord("-"):None, ord(" "): None })
+    if not isbn_cleaned.isalnum(): # MUST SWITCH TO .isnumeric() 
+        return False, {"type: ":"format", "Error": f"Invalid ISBN: {isbn} format, must be ..."} # UPDATE
+    
+    return True, {}
+
+#POST (create) book
+@app.route("/books", methods=['POST'])
 def add_book():
     if isAdmin:
         # check if route being called as a POST Method
         if request.method == 'POST':
             req_data = dict(request.json)
-            req_data['date_published'] = parse(req_data['date_published']).date()
+            req_data['date_published'] = parse(req_data['date_published']).date() # date to iso format
+            
+            # check if ID is present in body. if so, check if there exists a book with that ID already
+            if 'id' in req_data:
+                book = Book.query.get(req_data['id'])
+                if book is not None:
+                    return jsonify(msg={"Error":f"Book with ID:{req_data['id']} already exists"}), 500
+            
             new_book = Book(**req_data)
-            if not isvalidate_isbn(req_data['isbn']):
-                return jsonify({"Error" : f"ISBN:{req_data['isbn']} is invalid or already exists in DB"})
+            isValid, msg = isvalid_isbn(req_data['isbn'])
+            if not isValid:
+                return jsonify(msg=msg)
             try:
                 db.session.add(new_book)
                 db.session.commit()
@@ -61,40 +79,83 @@ def add_book():
         else:
             return jsonify(msg={"Error": f"HTTP code of '{request.method}' not supported by this enpoint"})
 
-# GET book, PUT (update) book, DELETE book
-@app.route("/book/<isbn>", methods=['GET', 'PUT', 'DELETE'])
+# GET a book by ISBN
+@app.route("/books/<isbn>", methods=['GET'])
 def book_details(isbn: str):
     book = Book.query.filter_by(isbn=isbn).first()
     
     if book is None:
-        return jsonify(msg={"Error": f"Could not retreive author with isbn:{isbn} or does not exists"}), 500
+        return jsonify(msg={"Error": f"We dont have a book with ISBN:{isbn} in our system."}), 404
 
-    
     if request.method == 'GET': # return existing book
         return jsonify(book.as_dict())
-    elif request.method == 'PUT': # update existing book 
-        for k, v in request.json.items():
-            setattr(book, k, v)
-        db.session.commit()
-        return jsonify(book.as_dict())
+
     elif request.method == 'DELETE': # Delete book from db
         book_data = book.as_dict()
         db.session.delete(book)
         db.session.commit()
         return jsonify(delete_book=book_data)
-        
-@app.route("/all_books")
+
+# GET ALL books
+@app.route("/books", methods=['GET'])
 def all_books():
     books = Book.query.all() # returns list of books
-    if books is not None:
-        books = [book.as_dict() for book in books] # convert book obj to dict and store in list
-        return jsonify(books_list=books), 202
-    elif books is None:
-        return jsonify(msg={"Error:": "No books found"})
-    else:
-        pass
+    if books is None:
+        return jsonify(msg={"Error:": "No books found"}), 404
+    
+    books = [book.as_dict() for book in books] # convert book obj to dict and store in list of book dicts
+    return jsonify(books_list=books), 202
 
-@app.route("/add_author", methods=['POST'])
+# PUT (update) book 
+@app.route("/books", methods=['PUT'])
+def update_book_details():
+    """
+        This route expects to be called with HTTP method PUT
+        Header:
+            content-type = application/json
+        body:
+        {
+            "isbn": <isbn string>       <--must be included
+            "key": <update value>
+            ...
+        }
+    Returns:
+        json/dict: returns a json object with updated data or error message
+    """
+    body = request.get_json()
+    
+    if 'isbn' not in body:
+        return jsonify(msg={"Error" : "ISBN must be included in the body"}), 500
+    
+    book = Book.query.filter_by(isbn=body['isbn']).first()
+    if book:
+        for k, v in request.json.items():
+            setattr(book, k, v)
+        db.session.commit()
+        return jsonify(book.as_dict()), 201
+    return jsonify(msg={"Error":f"Book with ISBN: {body['isbn']} does not exist in GeekText"}), 404
+
+# DELETE book
+@app.route("/books", methods=['DELETE'])
+def delete_book():
+    
+    book = Book.query.filter_by(isbn=request.json['isbn']).first()
+    if book is not None:
+        book_data = book.as_dict()
+        db.session.delete(book)
+        db.session.commit()
+        return jsonify(delete_book=book_data)
+    return jsonify(msg={"Error":f"Book with ISBN {request.json['isbn']} is not in our system"}), 404
+
+
+
+"""
+-------------------------------------------------------
+                    Author routes below
+-------------------------------------------------------
+"""
+
+@app.route("/authors", methods=['POST'])
 def add_author(fname=None, lname=None):
     if request.method == 'POST':
         new_author = Author(**request.json)
@@ -105,8 +166,8 @@ def add_author(fname=None, lname=None):
         except Exception as e:
             return jsonify(msg=f"Error: {e}"), 500
 
-# GET author, PUT (update) author, DELETE author
-@app.route("/author/<id>", methods=['GET', 'PUT', 'DELETE'])
+# GET author
+@app.route("/authors/<id>", methods=['GET', 'PUT', 'DELETE'])
 def author_details(id):
     author = Author.query.get(id)
     
@@ -126,7 +187,7 @@ def author_details(id):
         db.session.commit()
         return jsonify(deleted_author=author_data), 200
 
-@app.route("/all_authors")
+@app.route("/authors")
 def all_authors():
     authors = Author.query.all()
     authors = [author.as_dict() for author in authors]
@@ -135,7 +196,7 @@ def all_authors():
     except Exception as e:
         return jsonify(msg=f"Error: {e}")
 
-@app.route("/author/<author_id>/books", methods=['GET'])
+@app.route("/authors/<author_id>/books", methods=['GET'])
 def books_by_author(author_id):
     author = Author.query.get(author_id)
     author_books = list(author.books)
