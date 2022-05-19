@@ -22,7 +22,6 @@ def home():
     books = db.session.query(Book).all()
     return render_template("index.html", books=books)
 
-
 """
     Adriels' TODOs:
     Book Details 
@@ -34,7 +33,15 @@ def home():
         last name, biography and publisher
     [~] Must be able to retrieve a list of books associate with an author
 """
-# made it its own route for now 
+def isvalidate_isbn(isbn: str):
+    book = Book.query.filter_by(isbn=isbn).all()
+    if book is not None:
+        return False
+    isbn_cleaned = isbn.translate({ord("-"):None, ord(" "): None })
+    if isbn_cleaned.isalnum(): # MUST SWITCH TO .isnumeric() 
+        return True
+    return False
+    
 @app.route("/add_book", methods=['POST'])
 def add_book():
     if isAdmin:
@@ -43,6 +50,8 @@ def add_book():
             req_data = dict(request.json)
             req_data['date_published'] = parse(req_data['date_published']).date()
             new_book = Book(**req_data)
+            if not isvalidate_isbn(req_data['isbn']):
+                return jsonify({"Error" : f"ISBN:{req_data['isbn']} is invalid or already exists in DB"})
             try:
                 db.session.add(new_book)
                 db.session.commit()
@@ -53,12 +62,13 @@ def add_book():
             return jsonify(msg={"Error": f"HTTP code of '{request.method}' not supported by this enpoint"})
 
 # GET book, PUT (update) book, DELETE book
-@app.route("/book/<id>", methods=['GET', 'PUT', 'DELETE'])
-def book_details(id):
-    book = Book.query.get(id)
+@app.route("/book/<isbn>", methods=['GET', 'PUT', 'DELETE'])
+def book_details(isbn: str):
+    book = Book.query.filter_by(isbn=isbn).first()
     
     if book is None:
-        return jsonify(msg={"Error": f"Could not retreive author with ID:{id} or does not exists"}), 500
+        return jsonify(msg={"Error": f"Could not retreive author with isbn:{isbn} or does not exists"}), 500
+
     
     if request.method == 'GET': # return existing book
         return jsonify(book.as_dict())
@@ -116,8 +126,6 @@ def author_details(id):
         db.session.commit()
         return jsonify(deleted_author=author_data), 200
 
-        
-        
 @app.route("/all_authors")
 def all_authors():
     authors = Author.query.all()

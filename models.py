@@ -12,10 +12,11 @@ class Book(db.Model):
     copies_sold     = db.Column(db.Integer, nullable=True)
     date_published  = db.Column(db.Date(), nullable=True)
     genre           = db.Column(db.String(100), nullable=True)
-    isbn            = db.Column(db.String(100), nullable=True, unique=True)
+    isbn            = db.Column(db.String(18), nullable=True, unique=True)
     description     = db.Column(db.String(250), nullable=True)
     title           = db.Column(db.String(100), nullable=True)
     publisher       = db.Column(db.String(100), nullable=True)
+    
     
     # helper function to format date as iso, can be extended for further formating
     def set_value(self, name):
