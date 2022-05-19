@@ -5,6 +5,7 @@ from flask_migrate import Migrate
 from models import db, Book, Author
 from datetime import datetime
 from dateutil.parser import parse
+from http import HTTPStatus
 
 app = Flask(__name__)
 
@@ -65,20 +66,20 @@ def add_book():
             if 'id' in req_data:
                 book = Book.query.get(req_data['id'])
                 if book is not None:
-                    return jsonify(msg={"Error":f"Book with ID:{req_data['id']} already exists"}), 500
+                    return jsonify(msg={"Error":f"Book with ID:{req_data['id']} already exists"}), HTTPStatus.BAD_REQUEST
             
             new_book = Book(**req_data)
             isValid, msg = isvalid_isbn(req_data['isbn'])
             if not isValid:
-                return jsonify(msg=msg)
+                return jsonify(msg=msg), HTTPStatus.BAD_REQUEST
             try:
                 db.session.add(new_book)
                 db.session.commit()
-                return jsonify(new_book.as_dict()), 202
+                return jsonify(new_book.as_dict()), HTTPStatus.CREATED
             except Exception as e:
-                return jsonify(msg=f"Error: {e}"), 400
+                return jsonify(msg=f"Error: {e}"), HTTPStatus.INTERNAL_SERVER_ERROR
         else:
-            return jsonify(msg={"Error": f"HTTP code of '{request.method}' not supported by this enpoint"})
+            return jsonify(msg={"Error": f"HTTP code of '{request.method}' not supported by this enpoint"}), HTTPStatus.BAD_GATEWAY
 
 # GET a book by ISBN
 @app.route("/books/<isbn>", methods=['GET'])
@@ -86,35 +87,30 @@ def book_details(isbn: str):
     book = Book.query.filter_by(isbn=isbn).first()
     
     if book is None:
-        return jsonify(msg={"Error": f"We dont have a book with ISBN:{isbn} in our system."}), 404
+        return jsonify(msg={"Error": f"We dont have a book with ISBN:{isbn} in our system."}), HTTPStatus.NOT_FOUND
 
     if request.method == 'GET': # return existing book
-        return jsonify(book.as_dict())
+        return jsonify(book.as_dict()), HTTPStatus.OK
 
-    elif request.method == 'DELETE': # Delete book from db
-        book_data = book.as_dict()
-        db.session.delete(book)
-        db.session.commit()
-        return jsonify(delete_book=book_data)
 
-# GET books by author
+# GET books by author  ***WIP***
 @app.route("/authors/<author_id>/books", methods=['GET'])
 def books_by_author(author_id):
     author = Author.query.get(author_id)
     author_books = list(author.books)
     author_name = f"{author.first_name}  {author.last_name}"
     books = [book.as_dict() for book in author_books]
-    return jsonify(books_by_author={author_name:books})
+    return jsonify(books_by_author={author_name:books}), HTTPStatus.ACCEPTED
 
 # GET ALL books
 @app.route("/books", methods=['GET'])
 def all_books():
     books = Book.query.all() # returns list of books
     if books is None:
-        return jsonify(msg={"Error:": "No books found"}), 404
+        return jsonify(msg={"Error:": "No books found"}), HTTPStatus.ACCEPTED
     
     books = [book.as_dict() for book in books] # convert book obj to dict and store in list of book dicts
-    return jsonify(books_list=books), 202
+    return jsonify(books_list=books), HTTPStatus.ACCEPTED
 
 # PUT (update) book 
 @app.route("/books", methods=['PUT'])
@@ -135,15 +131,15 @@ def update_book():
     body = request.get_json()
     
     if 'isbn' not in body:
-        return jsonify(msg={"Error" : "ISBN must be included in the body"}), 500
+        return jsonify(msg={"Error" : "ISBN must be included in the body"}), HTTPStatus.BAD_REQUEST
     
     book = Book.query.filter_by(isbn=body['isbn']).first()
     if book:
         for k, v in request.json.items():
             setattr(book, k, v)
         db.session.commit()
-        return jsonify(book.as_dict()), 201
-    return jsonify(msg={"Error":f"Book with ISBN: {body['isbn']} does not exist in GeekText"}), 404
+        return jsonify(book.as_dict()), HTTPStatus.ACCEPTED
+    return jsonify(msg={"Error":f"Book with ISBN: {body['isbn']} does not exist in GeekText"}), HTTPStatus.NOT_FOUND
 
 # DELETE book
 @app.route("/books", methods=['DELETE'])
@@ -151,12 +147,12 @@ def delete_book():
     book = Book.query.filter_by(isbn=request.json['isbn']).first()
     
     if book is None:
-        return jsonify(msg={"Error":f"Book with ISBN {request.json['isbn']} is not in our system"}), 404
+        return jsonify(msg={"Error":f"Book with ISBN {request.json['isbn']} is not in our system"}), HTTPStatus.NOT_FOUND
     
     book_data = book.as_dict()
     db.session.delete(book)
     db.session.commit()
-    return jsonify(deleted_book=book_data)
+    return jsonify(deleted_book=book_data), HTTPStatus.OK
 
 """
 -------------------------------------------------------
