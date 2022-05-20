@@ -9,7 +9,7 @@ class Book(db.Model):
     id              = db.Column(db.Integer, primary_key=True, unique=True)
     author_id       = db.Column(db.Integer, db.ForeignKey('authors.id'), nullable=True)
     price           = db.Column(db.Integer, nullable=True)
-    copies_sold     = db.Column(db.Integer, nullable=True)
+    copies_sold     = db.Column(db.Integer, default=0)
     date_published  = db.Column(db.Date(), nullable=True)
     genre           = db.Column(db.String(100), nullable=True)
     isbn            = db.Column(db.String(18), nullable=True, unique=True)
