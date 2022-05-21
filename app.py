@@ -1,24 +1,32 @@
-import http
-import json
-import re
 from flask import Flask, url_for, redirect, render_template, request, jsonify
 from flask_migrate import Migrate
 from models import db, Book, Author
-from datetime import datetime
 from dateutil.parser import parse
 from http import HTTPStatus
+from flask_caching import Cache
 
+# create flask app 
 app = Flask(__name__)
 
-isAdmin = True  # just in the mean time...
+# create cache obj
+cache = Cache() 
 
+# config cache
+app.config['CACHE_TYPE'] = 'simple'
+
+# database configs
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
+# migrate config
 migrate = Migrate(app, db, render_as_batch=True)
 
+# init database & cache
 db.init_app(app)
+cache.init_app(app)
 
+# place holder for eventual user auth
+isAdmin = True  # just in the mean time...
 
 @app.route("/")
 def home():
@@ -82,6 +90,7 @@ def add_book():
 
 # GET a book by ISBN
 @app.route("/books/<isbn>", methods=['GET'])
+@cache.cached(timeout=5)
 def book_details(isbn: str):
     book = Book.query.filter_by(isbn=isbn).first()
     
@@ -91,30 +100,18 @@ def book_details(isbn: str):
     if request.method == 'GET': # return existing book
         return jsonify(book.as_dict()), HTTPStatus.OK
 
-# GET books by author
-@app.route("/authors/<author_id>/books", methods=['GET'])
-def books_by_author(author_id):
-    author = Author.query.get(author_id)
-    
-    if author is None:
-        return jsonify({"Error":"No author with ID: {author_id} in our system"})
-    
-    author_books = list(author.books)
-    author_name = f"{author.first_name} {author.last_name}"
-    books = [book.as_dict() for book in author_books]
-    return jsonify(books_by_author={author_name:books}), HTTPStatus.ACCEPTED
-
 # GET ALL books
 @app.route("/books", methods=['GET'])
+@cache.cached(timeout=5)
 def all_books():
     books = Book.query.all() # returns list of books
     
     if books is None:
-        return jsonify(msg={"Error:": "No books found"}), HTTPStatus.ACCEPTED
+        return jsonify(msg={"Error:": "No books found"}), HTTPStatus.NOT_FOUND
     
     # convert book obj to dict and store in list of book dicts
     books = [book.as_dict() for book in books] 
-    return jsonify(books_list=books), HTTPStatus.ACCEPTED
+    return jsonify(books_list=books), HTTPStatus.OK
 
 # PUT (update) book 
 @app.route("/books", methods=['PUT'])
@@ -172,6 +169,7 @@ def add_author(fname=None, lname=None):
 
 # GET author
 @app.route("/authors/<id>", methods=['GET'])
+@cache.cached(timeout=5)
 def author_details(id):
     author = Author.query.get(id)
     
@@ -182,6 +180,7 @@ def author_details(id):
 
 # GET all authors
 @app.route("/authors", methods=['GET'])
+@cache.cached(timeout=5)
 def all_authors():
     authors = Author.query.all()
     
@@ -191,6 +190,20 @@ def all_authors():
         return jsonify(all_authors=authors), HTTPStatus.OK
     except Exception as e:
         return jsonify(msg=f"Error: {e}"), HTTPStatus.INTERNAL_SERVER_ERROR
+
+# GET books by author
+@app.route("/authors/<author_id>/books", methods=['GET'])
+@cache.cached(timeout=5)
+def books_by_author(author_id):
+    author = Author.query.get(author_id)
+    
+    if author is None:
+        return jsonify({"Error":"No author with ID: {author_id} in our system"})
+    
+    author_books = list(author.books)
+    author_name = f"{author.first_name} {author.last_name}"
+    books = [book.as_dict() for book in author_books]
+    return jsonify(books_by_author={author_name:books}), HTTPStatus.ACCEPTED
 
 # PUT (update) author
 @app.route("/authors", methods=['PUT'])
@@ -240,6 +253,14 @@ def internal_error(error):
     db.session.rollback()
     return render_template('500.html'), 500
 
-
+@app.route("/bulk_update", methods=['PUT'])
+def bulk_update(key: str, value):
+    books = db.session.query(Book).all()
+    for book in books:
+        setattr(book, key, value)
+        db.session.commit()
+    books = [book.as_dict() for book in books]
+    return jsonify(books), 200
+        
 if __name__ == "__main__":
     app.run()
