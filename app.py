@@ -1,9 +1,12 @@
 from flask import Flask, url_for, redirect, render_template, request, jsonify
 from flask_migrate import Migrate
-from models import db, Book, Author
+from models import db, Book, Author, ma, BookSchema, AuthorSchema
 from dateutil.parser import parse
 from http import HTTPStatus
 from flask_caching import Cache
+from marshmallow import ValidationError
+from datetime import date
+
 
 # create flask app 
 app = Flask(__name__)
@@ -21,8 +24,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 # migrate config
 migrate = Migrate(app, db, render_as_batch=True)
 
-# init database & cache
+# init database, Marshmallow & cache
 db.init_app(app)
+ma.init_app(app)
 cache.init_app(app)
 
 # place holder for eventual user auth
@@ -68,8 +72,16 @@ def add_book():
     if isAdmin:
         # copy json into req_data
         req_data = dict(request.json)
-        req_data['date_published'] = parse(req_data['date_published']).date() # date to iso format
         
+        #validate request body data
+        schema = BookSchema()
+        invalid_msg = schema.validate(req_data)
+        if invalid_msg:
+            return jsonify(invalid_msg), HTTPStatus.BAD_REQUEST
+        
+        # convert date_published string to python date obj
+        req_data['date_published'] = parse(req_data['date_published']).date()
+            
         # check if ID is present in req body. if so, check if there exists a book with that ID already
         if 'id' in req_data:
             book = Book.query.get(req_data['id'])
@@ -78,9 +90,9 @@ def add_book():
         
         # create book obj
         new_book = Book(**req_data)
-        isValid, msg = isvalid_isbn(req_data['isbn'])
-        if not isValid:
-            return jsonify(msg=msg), HTTPStatus.BAD_REQUEST
+        # isValid, msg = isvalid_isbn(req_data['isbn'])
+        # if not isValid:
+        #     return jsonify(msg=msg), HTTPStatus.BAD_REQUEST
         try:
             db.session.add(new_book)
             db.session.commit()
@@ -118,18 +130,27 @@ def all_books():
 def update_book():
     body = request.get_json()
     
+    # validate data
+    schema = BookSchema()
+    invalid_msg = schema.validate(request.json, session=db.session)
+    if invalid_msg:
+        return jsonify(invalid_msg), HTTPStatus.BAD_REQUEST
+    
     if 'isbn' not in body:
         return jsonify(msg={"Error" : "ISBN must be included in the body"}), HTTPStatus.BAD_REQUEST
     
     book = Book.query.filter_by(isbn=body['isbn']).first()
     
-    if book is not None:
-        return jsonify(msg={"Error":"Retrieving book with ISBN: {body['isbn']}"}), HTTPStatus.NOT_FOUND
+    if book is None:
+        return jsonify(msg={"Error":f"Retrieving book with ISBN: {body['isbn']}"}), HTTPStatus.NOT_FOUND
     
     # update book info
     if book:
         for k, v in request.json.items():
-            setattr(book, k, v)
+            # 'author' is an ORM token now, which raises an AttributeException error. 
+            # so if a key called 'author' is passed it should be ignored
+            if k != "author": 
+                setattr(book, k, v)
         db.session.commit()
         return jsonify(book.as_dict()), HTTPStatus.ACCEPTED
     return jsonify(msg={"Error":f"Book with ISBN: {body['isbn']} does not exist in GeekText"}), HTTPStatus.NOT_FOUND
@@ -155,17 +176,21 @@ def delete_book():
 # POST (create) author
 @app.route("/authors", methods=['POST'])
 def add_author(fname=None, lname=None):
-    if request.method == 'POST':
-        new_author = Author(**request.json)
-        
-        if new_author is None:
-            return jsonify(msg={"Error":"Could not create author with provided data", "request body": request.json}), HTTPStatus.INTERNAL_SERVER_ERROR
-        try:
-            db.session.add(new_author)
-            db.session.commit()
-            return jsonify(new_author.as_dict()), HTTPStatus.CREATED
-        except Exception as e:
-            return jsonify(msg=f"Error: {e}"), HTTPStatus.INTERNAL_SERVER_ERROR
+    schema = AuthorSchema()
+    invalid_msg = schema.validate(request.json)
+    if invalid_msg:
+        return jsonify(invalid_msg), HTTPStatus.BAD_REQUEST
+    
+    new_author = Author(**request.json)
+    
+    if new_author is None:
+        return jsonify(msg={"Error":"Could not create author with provided data", "request body": request.json}), HTTPStatus.INTERNAL_SERVER_ERROR
+    try:
+        db.session.add(new_author)
+        db.session.commit()
+        return jsonify(new_author.as_dict()), HTTPStatus.CREATED
+    except Exception as e:
+        return jsonify(msg=f"Error: {e}"), HTTPStatus.INTERNAL_SERVER_ERROR
 
 # GET author
 @app.route("/authors/<id>", methods=['GET'])
@@ -203,13 +228,21 @@ def books_by_author(author_id):
     author_books = list(author.books)
     author_name = f"{author.first_name} {author.last_name}"
     books = [book.as_dict() for book in author_books]
-    return jsonify(books_by_author={author_name:books}), HTTPStatus.ACCEPTED
+    return jsonify(books_by_author={author_name:books}), HTTPStatus.OK
 
 # PUT (update) author
 @app.route("/authors", methods=['PUT'])
 def update_author():
     body = request.get_json()
     author = None
+    
+    schema = AuthorSchema()
+    invalid_msg = schema.validate(body)
+    if invalid_msg:
+        return jsonify(invalid_msg), HTTPStatus.BAD_REQUEST
+    
+    if body == {}:
+        return jsonify(msg={"Error":"No content provided"}), HTTPStatus.NO_CONTENT
     
     if 'id' not in body:
         if ('first_name' and 'last_name') not in  body:
@@ -247,11 +280,16 @@ def delete_author():
     db.session.commit()
     return jsonify(deleted_author=author_data), HTTPStatus.OK
 
+# something went really bad
 @app.errorhandler(500)
 def internal_error(error):
-    print("------------------------------\nheyoooo\n------------------------------")
     db.session.rollback()
-    return render_template('500.html'), 500
+    return jsonify(error_msg={"code":error.code, "description": error.description}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+# for undefined endpoints
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify(error_msg={"code":error.code, "description": error.description}), HTTPStatus.NOT_FOUND
 
 @app.route("/bulk_update", methods=['PUT'])
 def bulk_update(key: str, value):
