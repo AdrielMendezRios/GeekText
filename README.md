@@ -19,7 +19,7 @@ I'm gonna assume python, flask and git are downloaded.
 10. finally run command "flask run"
 
 ## to create your own git branch
-cd into the GeekText folder, then run "git checkout -b <the name you want to give your branch>"
+cd into the GeekText folder, then run "git checkout -b {the name you want to give your branch}"
 
 then add, commit, and push changes as you need
 
