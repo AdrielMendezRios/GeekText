@@ -1,89 +1,304 @@
-from flask import Flask, url_for, redirect, render_template, request
+from flask import Flask, url_for, redirect, render_template, request, jsonify
 from flask_migrate import Migrate
-from models import db, Book, Author
-from datetime import datetime
+from models import db, Book, Author, ma, BookSchema, AuthorSchema
+from dateutil.parser import parse
+from http import HTTPStatus
+from flask_caching import Cache
+from marshmallow import ValidationError
+from datetime import date
 
+
+# create flask app 
 app = Flask(__name__)
 
-isAdmin = True  # just in the mean time...
+# create cache obj
+cache = Cache() 
 
+# config cache
+app.config['CACHE_TYPE'] = 'simple'
+
+# database configs
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
-migrate = Migrate(app, db)
+# migrate config
+migrate = Migrate(app, db, render_as_batch=True)
 
+# init database, Marshmallow & cache
 db.init_app(app)
+ma.init_app(app)
+cache.init_app(app)
+
+# place holder for eventual user auth
+isAdmin = True  # just in the mean time...
 
 @app.route("/")
 def home():
-    db.session.rollback(); # helpfull when db breaks ( aka when i break it)
     books = db.session.query(Book).all()
-    return render_template("index.html", books=books)
-
+    authors = db.session.query(Author).all()
+    return render_template("index.html", books=books, authors=authors)
 
 """
     Adriels' TODOs:
     Book Details 
-    [~]  An administrator must be able to create a book with the book ISBN, book
+    [~] An administrator must be able to create a book with the book ISBN, book
         name, book description, price, author, genre, publisher, year published and
         copies sold.
-    []  Must be able retrieve a book's detail
+    [~] Must be able retrieve a book's detail
     [~] An administrator must be able to create an author with first name, 
         last name, biography and publisher
-    []  Must be able to retrieve a list of books associate with an author
+    [~] Must be able to retrieve a list of books associate with an author
 """
+"""
+-------------------------------------------------------
+                Book routes below
+-------------------------------------------------------
+"""
+#helper function (might delete)
+def isvalid_isbn(isbn: str):
+    book = Book.query.filter_by(isbn=isbn).first()
+    if book is not None:
+        return False, {"type: ":"exists", "Error": f"Book with ISBN: {isbn} already exists"}
+    
+    isbn_cleaned = isbn.translate({ord("-"):None, ord(" "): None })
+    if not isbn_cleaned.isalnum(): # MUST SWITCH TO .isnumeric() 
+        return False, {"type: ":"format", "Error": f"Invalid ISBN: {isbn} format, must be ..."} # UPDATE
+    
+    return True, {}
 
-@app.route("/add_book", methods=['GET', 'POST'])
+#POST (create) book
+@app.route("/books", methods=['POST'])
 def add_book():
     if isAdmin:
-        # check if route being called as a POST Method
-        if request.method == 'POST':
-            title = request.form.get("title")
-            isbn = request.form.get("isbn")
-            price = request.form.get("price")
-            publisher = request.form.get("publisher")
-            genre = request.form.get("genre")
-            date_published = datetime.strptime(request.form.get("date_published"), "%Y-%m-%d")
-            description = request.form.get("description")
-            copies_sold = 0
-            author_fname = request.form.get("author_fname")
-            author_lname = request.form.get("author_lname")
-            author = get_author(author_fname, author_lname)
-            author_id = None
-            if author is None:
-                # create new Author if author not in db
-                new_author = Author(first_name=author_fname, last_name=author_lname)
-                db.session.add(new_author)
-                db.session.commit()
-                author_id = new_author.id
-            else:
-                # retrive id of existing author
-                author_id = author.id
-            # create Book object and add all the info collected form request.form
-            new_book = Book(title=title, isbn=isbn, author_id=author_id, price=price,
-                            copies_sold=copies_sold, description=description, genre=genre,
-                            publisher=publisher, date_published=date_published)
-            # add 'new_book' to db
+        # copy json into req_data
+        req_data = dict(request.json)
+        
+        #validate request body data
+        schema = BookSchema()
+        invalid_msg = schema.validate(req_data)
+        if invalid_msg:
+            return jsonify(invalid_msg), HTTPStatus.BAD_REQUEST
+        
+        # convert date_published string to python date obj
+        req_data['date_published'] = parse(req_data['date_published']).date()
+            
+        # check if ID is present in req body. if so, check if there exists a book with that ID already
+        if 'id' in req_data:
+            book = Book.query.get(req_data['id'])
+            if book is not None:
+                return jsonify(msg={"Error":f"Book with ID:{req_data['id']} already exists"}), HTTPStatus.BAD_REQUEST
+        
+        # create book obj
+        new_book = Book(**req_data)
+        # isValid, msg = isvalid_isbn(req_data['isbn'])
+        # if not isValid:
+        #     return jsonify(msg=msg), HTTPStatus.BAD_REQUEST
+        try:
             db.session.add(new_book)
             db.session.commit()
-            return redirect(url_for("home"))
-        else: # when route is being called normally
-            return render_template('add_book.html')
-    return redirect(url_for("home")) # when user not an admin (not implemented yet)
+            return jsonify(new_book.as_dict()), HTTPStatus.CREATED # 201
+        except Exception as e:
+            return jsonify(msg=f"Error: {e}"), HTTPStatus.INTERNAL_SERVER_ERROR
 
-# helper function. queries db for author, returns author or empty query object
-def get_author(fname, lname):
-    author = Author.query.filter_by(first_name=fname, last_name=lname).first()
-    return author
+# GET a book by ISBN
+@app.route("/books/<isbn>", methods=['GET'])
+@cache.cached(timeout=5)
+def book_details(isbn: str):
+    book = Book.query.filter_by(isbn=isbn).first()
+    
+    if book is None:
+        return jsonify(msg={"Error": f"We dont have a book with ISBN:{isbn} in our system."}), HTTPStatus.NOT_FOUND
 
-@app.route("/add_author", methods=['GET', 'POST'])
+    if request.method == 'GET': # return existing book
+        return jsonify(book.as_dict()), HTTPStatus.OK
+
+# GET ALL books
+@app.route("/books", methods=['GET'])
+@cache.cached(timeout=5)
+def all_books():
+    books = Book.query.all() # returns list of books
+    
+    if books is None:
+        return jsonify(msg={"Error:": "No books found"}), HTTPStatus.NOT_FOUND
+    
+    # convert book obj to dict and store in list of book dicts
+    books = [book.as_dict() for book in books] 
+    return jsonify(books_list=books), HTTPStatus.OK
+
+# PUT (update) book 
+@app.route("/books", methods=['PUT'])
+def update_book():
+    body = request.get_json()
+    
+    # validate data
+    schema = BookSchema()
+    invalid_msg = schema.validate(request.json, session=db.session)
+    if invalid_msg:
+        return jsonify(invalid_msg), HTTPStatus.BAD_REQUEST
+    
+    if 'isbn' not in body:
+        return jsonify(msg={"Error" : "ISBN must be included in the body"}), HTTPStatus.BAD_REQUEST
+    
+    book = Book.query.filter_by(isbn=body['isbn']).first()
+    
+    if book is None:
+        return jsonify(msg={"Error":f"Retrieving book with ISBN: {body['isbn']}"}), HTTPStatus.NOT_FOUND
+    
+    # update book info
+    if book:
+        for k, v in request.json.items():
+            # 'author' is an ORM token now, which raises an AttributeException error. 
+            # so if a key called 'author' is passed it should be ignored
+            if k != "author": 
+                setattr(book, k, v)
+        db.session.commit()
+        return jsonify(book.as_dict()), HTTPStatus.ACCEPTED
+    return jsonify(msg={"Error":f"Book with ISBN: {body['isbn']} does not exist in GeekText"}), HTTPStatus.NOT_FOUND
+
+# DELETE book
+@app.route("/books", methods=['DELETE'])
+def delete_book():
+    book = Book.query.filter_by(isbn=request.json['isbn']).first()
+    
+    if book is None:
+        return jsonify(msg={"Error":f"Book with ISBN {request.json['isbn']} is not in our system"}), HTTPStatus.NOT_FOUND
+    
+    book_data = book.as_dict()
+    db.session.delete(book)
+    db.session.commit()
+    return jsonify(deleted_book=book_data), HTTPStatus.OK
+
+"""
+-------------------------------------------------------
+                Author routes below
+-------------------------------------------------------
+"""
+# POST (create) author
+@app.route("/authors", methods=['POST'])
 def add_author(fname=None, lname=None):
-    if isAdmin:
-        new_author = Author(first_name=fname, last_name=lname)
+    schema = AuthorSchema()
+    invalid_msg = schema.validate(request.json)
+    if invalid_msg:
+        return jsonify(invalid_msg), HTTPStatus.BAD_REQUEST
+    
+    new_author = Author(**request.json)
+    
+    if new_author is None:
+        return jsonify(msg={"Error":"Could not create author with provided data", "request body": request.json}), HTTPStatus.INTERNAL_SERVER_ERROR
+    try:
         db.session.add(new_author)
         db.session.commit()
+        return jsonify(new_author.as_dict()), HTTPStatus.CREATED
+    except Exception as e:
+        return jsonify(msg=f"Error: {e}"), HTTPStatus.INTERNAL_SERVER_ERROR
+
+# GET author
+@app.route("/authors/<id>", methods=['GET'])
+@cache.cached(timeout=5)
+def author_details(id):
+    author = Author.query.get(id)
     
+    if author is None:
+        return jsonify(msg={"Error": f"Could not retreive Author with ID: {id}"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    
+    return jsonify(author=author.as_dict()), HTTPStatus.OK
 
+# GET all authors
+@app.route("/authors", methods=['GET'])
+@cache.cached(timeout=5)
+def all_authors():
+    authors = Author.query.all()
+    
+    # create a list of author dicts
+    authors = [author.as_dict() for author in authors]
+    try:
+        return jsonify(all_authors=authors), HTTPStatus.OK
+    except Exception as e:
+        return jsonify(msg=f"Error: {e}"), HTTPStatus.INTERNAL_SERVER_ERROR
 
+# GET books by author
+@app.route("/authors/<author_id>/books", methods=['GET'])
+@cache.cached(timeout=5)
+def books_by_author(author_id):
+    author = Author.query.get(author_id)
+    
+    if author is None:
+        return jsonify({"Error":"No author with ID: {author_id} in our system"})
+    
+    author_books = list(author.books)
+    author_name = f"{author.first_name} {author.last_name}"
+    books = [book.as_dict() for book in author_books]
+    return jsonify(books_by_author={author_name:books}), HTTPStatus.OK
+
+# PUT (update) author
+@app.route("/authors", methods=['PUT'])
+def update_author():
+    body = request.get_json()
+    author = None
+    
+    schema = AuthorSchema()
+    invalid_msg = schema.validate(body)
+    if invalid_msg:
+        return jsonify(invalid_msg), HTTPStatus.BAD_REQUEST
+    
+    if body == {}:
+        return jsonify(msg={"Error":"No content provided"}), HTTPStatus.NO_CONTENT
+    
+    if 'id' not in body:
+        if ('first_name' and 'last_name') not in  body:
+            return jsonify(msg={"Error":f"Must provide 'id' or 'first_name' and 'last_name' attributes in request body"}), HTTPStatus.BAD_REQUEST
+        author = Author.query.filter_by(first_name=body['first_name'], last_name=body['last_name'])
+    else:
+        author = Author.query.get(body['id'])
+    
+    if author is None:
+        return jsonify(msg={"Error":"Could not retrieve Author with provided data"}), HTTPStatus.NOT_FOUND
+    
+    for k, v in request.json.items():
+        setattr(author, k, v)
+    db.session.commit()
+    
+    return jsonify(author=author.as_dict()), HTTPStatus.OK
+
+# DELETE author
+@app.route("/authors", methods=['DELETE'])
+def delete_author():
+    body = request.get_json()
+    
+    if 'id' not in body:
+        if ('first_name' and 'last_name') not in  body:
+            return jsonify(msg={"Error":f"Must provide 'id' or 'first_name' and 'last_name' attributes in request body"}), HTTPStatus.BAD_REQUEST
+        author = Author.query.filter_by(first_name=body['first_name'], last_name=body['last_name'])
+    else:
+        author = Author.query.get(body['id'])
+    
+    if author is None:
+        return jsonify(msg={"Error":"Could not retrieve Author with provided data"}), HTTPStatus.NOT_FOUND
+    
+    author_data = author.as_dict()
+    db.session.delete(author)
+    db.session.commit()
+    return jsonify(deleted_author=author_data), HTTPStatus.OK
+
+# something went really bad
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return jsonify(error_msg={"code":error.code, "description": error.description}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+# for undefined endpoints
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify(error_msg={"code":error.code, "description": error.description}), HTTPStatus.NOT_FOUND
+
+@app.route("/bulk_update", methods=['PUT'])
+def bulk_update(key: str, value):
+    books = db.session.query(Book).all()
+    for book in books:
+        setattr(book, key, value)
+        db.session.commit()
+    books = [book.as_dict() for book in books]
+    return jsonify(books), 200
+        
 if __name__ == "__main__":
     app.run()

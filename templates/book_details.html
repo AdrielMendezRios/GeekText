@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h1>{{book.title | title}}</h1>
+    <h2>By {{book.author.first_name | title}} {{book.author.last_name | title}}</h2>
+    <p>Published by: {{book.publisher}}</p>
+    <p>${{book.price}}</p>
+    <p>genre: {{book.genre | title}}</p>
+    <hr>
+    <h3>Description:</h3>
+    <p>{{book.description}}</p>
+    <hr>
+    <p>ISBN: {{book.isbn}}</p>
+    <p>Published Date: {{book.date_published.strftime('%Y/%m/%d')}}</p>
+    <p>Copies sold: {{book.copies_sold}}</p>
+
+
+{% endblock content %}

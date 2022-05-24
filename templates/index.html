@@ -1,12 +1,27 @@
 {% extends 'base.html' %}
 {% block content %}
-    <a href="/add_book">Add a book</a>
+    <h1>TODO</h1>
+    <!--<a href="/add_book">Add a book</a>
     <h1>Our Books!</h1>
     {% if books|length > 0 %}
         {% for book in books  %}
-        <p>{{book.id}} | {{book}}</p>  
+        <hr>
+        <a href="/book/{{book.id}}">{{book.title | title}}</a> <br>
+        By <a href="/author/{{book.author_id}}">    {{book.author.first_name | title}} {{book.author.last_name | title}}</a>
+        
         {% endfor %}
     {% else %}
         <h3> No books yet... come back later!</h3>
     {% endif %}
+    <h1>Our Authors!</h1>
+    {% if author|length > 0 %}
+        {% for author in authors  %}
+        <hr>
+        <a href="/authors/{{book.id}}">{{book.title | title}}</a> <br>
+        By <a href="/author/{{book.author_id}}">    {{book.author.first_name | title}} {{book.author.last_name | title}}</a>
+        
+        {% endfor %}
+    {% else %}
+        <h3> No books yet... come back later!</h3>
+    {% endif %} -->
 {% endblock content %}
