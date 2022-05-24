@@ -1,6 +1,33 @@
 # GeekText
 Restful API project for Group 9 in CEN4010 RVDC RVCC 1225 summer '22 semester 
 
+# Getting started
+I'm gonna assume python, flask and git are downloaded.
+
+1. Copy the git repo
+2. create a local folder, name it whatever you want
+3. open a terminal and cd into the folder you just created
+4. run the command "git clone <url copied from step 1>"
+5. run command "python3 -m venv env" to create your python virtual environment
+6. type "env\Scripts\activate.bat" on the command line then press enter. (activates env)
+7. initialize the data base:
+    1. run command "flask db init"
+    2. run command "flask db migrate -m "init" "
+    3. run command "flask db upgrade"
+8. set the flask environment variable: "set FLASK_ENV=development"
+9. run command "pip install -r requirements.txt"
+10. finally run command "flask run"
+
+# testing enpoints with Postman
+follow the videos in discord
+your enpoints should all start with 127.0.0.1:5000 (or localhost:5000 if that works for you)
+
+to get all books choose GET as the HTTP method and the endpoint is: 127.0.0.1:5000/books
+
+to test-out/use book and author endpoints assume the data is being passed through the body as JSON 
+the all_books and all_authors endpoint don't take any params or body content
+
+# the old readme...
 # initial setup
 Download python 3.10.x
 make a local folder where you'll clone the repo into
