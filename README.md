@@ -20,6 +20,7 @@ I'm gonna assume python, flask and git are downloaded.
 
 ## to create your own git branch
 cd into the GeekText folder, then run "git checkout -b {the name you want to give your branch}"
+i.e. git checkout -b book_details 
 
 then add, commit, and push changes as you need
 
