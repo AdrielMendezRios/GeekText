@@ -10,12 +10,12 @@ I'm gonna assume python, flask and git are downloaded.
 4. run the command "git clone <url copied from step 1>"
 5. run command "python3 -m venv env" to create your python virtual environment
 6. type "env\Scripts\activate.bat" on the command line then press enter. (activates env)
-7. initialize the database:
+7. run command "pip install -r requirements.txt"
+8. initialize the database:
     1. run command "flask db init"
     2. run command "flask db migrate -m "init" "
     3. run command "flask db upgrade"
-8. set the flask environment variable: "set FLASK_ENV=development"
-9. run command "pip install -r requirements.txt"
+9. set the flask environment variable: "set FLASK_ENV=development"
 10. finally run command "flask run"
 
 ## to create your own git branch
