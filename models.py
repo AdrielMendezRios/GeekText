@@ -1,16 +1,11 @@
 from dataclasses import fields
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, date
+from datetime import  date
 from flask_marshmallow import Marshmallow
-from marshmallow import ValidationError, post_dump, pre_dump, pre_load, validates, EXCLUDE, RAISE
-from marshmallow_sqlalchemy import field_for, auto_field
-from dateutil.parser import parse
-
+from marshmallow import ValidationError, validates, RAISE, fields, pprint
 
 db = SQLAlchemy()
 ma = Marshmallow()
-
-
 
 
 class Book(db.Model):
@@ -18,7 +13,7 @@ class Book(db.Model):
     
     id              = db.Column(db.Integer,     primary_key=True, unique=True)
     author_id       = db.Column(db.Integer,     db.ForeignKey('authors.id'), nullable=True)
-    price           = db.Column(db.Integer,     nullable=True)
+    price           = db.Column(db.Integer,     default=25)
     copies_sold     = db.Column(db.Integer,     default=0)
     date_published  = db.Column(db.Date(),      nullable=True)
     genre           = db.Column(db.String(100), nullable=True)
@@ -51,12 +46,18 @@ class Author(db.Model):
     bio             = db.Column(db.String(500), nullable=True)
     books           = db.relationship('Book', backref='author')
     
+
+    
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
     
-    def __repr__(self) -> str:
+    def __repr__(self):
         return f"{self.first_name} {self.last_name}. Bio: {self.bio}"
 
+"""
+    the class below are Marshmallow schema classes for the sqlalchemy classes above.
+    i use them for validation but can also be used for (de)serializing the ORM objects
+"""
 
 class BookSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
@@ -68,7 +69,7 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
     
     @validates('isbn')
     def validate_isbn(self, val):
-        isbn_cleaned = val.translate({ord("-"):None, ord(" "): None })
+        isbn_cleaned = val.translate({ord("-"):None, ord(" "): None }) # remove "-" and spaces from isbn string
         if not isbn_cleaned.isnumeric():
             raise ValidationError(f"Invalid ISBN: {val}. must be a string containing ONLY numbers, '-' or a spaces ")
 
@@ -78,4 +79,5 @@ class AuthorSchema(ma.SQLAlchemyAutoSchema):
         include_relationships = True
         include_fk = True
 
-    
+    books = fields.Nested(BookSchema, many=True)
+
