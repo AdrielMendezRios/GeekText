@@ -6,7 +6,7 @@ from http import HTTPStatus
 from .cache import cache
 
 # import blueprint api routes below
-# from .api.blueprintTemplate import api as whateverIcalledItHere
+from .api.blueprintTemplate import api as whateverIcalledItHere
 from .api.book_routes import api as book_routes
 from .api.author_routes import api as author_routes
 
@@ -16,7 +16,7 @@ app = Flask(__name__)
 
 
 # Register route blueprints below
-# app.register_blueprint(whateverIcalledItHere)
+app.register_blueprint(whateverIcalledItHere)
 app.register_blueprint(book_routes)
 app.register_blueprint(author_routes)
 
