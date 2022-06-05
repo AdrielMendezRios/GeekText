@@ -7,6 +7,7 @@ from marshmallow import ValidationError, validates, RAISE, fields, pprint
 db = SQLAlchemy()
 ma = Marshmallow()
 
+
 class Book(db.Model):
     __tablename__ = 'books'
     
@@ -45,6 +46,7 @@ class Author(db.Model):
     bio             = db.Column(db.String(500), nullable=True)
     books           = db.relationship('Book', backref='author')
     
+
     
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -56,6 +58,7 @@ class Author(db.Model):
     the class below are Marshmallow schema classes for the sqlalchemy classes above.
     i use them for validation but can also be used for (de)serializing the ORM objects
 """
+
 class BookSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Book
@@ -77,3 +80,4 @@ class AuthorSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
 
     books = fields.Nested(BookSchema, many=True)
+

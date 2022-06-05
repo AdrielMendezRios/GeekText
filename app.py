@@ -14,6 +14,7 @@ from .api.author_routes import api as author_routes
 # create flask app 
 app = Flask(__name__)
 
+
 # Register route blueprints below
 # app.register_blueprint(whateverIcalledItHere)
 app.register_blueprint(book_routes)
@@ -55,7 +56,6 @@ def internal_error(error):
 @app.errorhandler(404)
 def not_found_error(error):
     return jsonify(error_msg={"code":error.code, "description": error.description}), HTTPStatus.NOT_FOUND
-
 
 if __name__ == "__main__":
     app.run()
