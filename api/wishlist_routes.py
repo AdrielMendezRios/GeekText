@@ -14,7 +14,11 @@ import json
 from flask import request, jsonify, Blueprint
 
 # add your models to the models.py file then import them here
+<<<<<<< HEAD
 from ..models import db, Book, Author, ma, BookSchema, User, Wishlist, ShoppingCart, WishlistSchema
+=======
+from ..models import db, Book, Author, ma, BookSchema
+>>>>>>> b2bb61f (Added api wishlist route from blueprint)
 from dateutil.parser import parse
 from http import HTTPStatus
 
@@ -26,6 +30,7 @@ api = Blueprint('wishlist_routes', __name__)
 
 # example route definition
 # the decorator below starts with `@api` because that what the blueprint was name on line 14
+<<<<<<< HEAD
 
 
 # Getting a wishlist by wishlist id
@@ -132,3 +137,9 @@ def remove_book(id, isbn):
 
     return jsonify({f"{user.username}'s Wishlist": books, "Book to Remove": book.as_dict(), f"{user.username}'s Shopping Cart": shopping_cart_books}), 200
 
+=======
+@api.route("/wishlist", methods=['GET'])
+@cache.cached(timeout=5) # add this decorator to cache data on GET routes (this one caches data for 5 seconds)
+def routeFunction():
+    return jsonify(message={"Success": f"Blueprint {api.name} configured!"})
+>>>>>>> b2bb61f (Added api wishlist route from blueprint)

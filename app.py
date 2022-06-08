@@ -24,6 +24,7 @@ app.register_blueprint(author_routes)
 app.register_blueprint(wishlist_routes)
 app.register_blueprint(shopping_cart_routes)
 
+
 # config cache
 app.config['CACHE_TYPE'] = 'simple'
 
@@ -48,10 +49,6 @@ def home():
     books = db.session.query(Book).all()
     authors = db.session.query(Author).all()
     return render_template("index.html", books=books, authors=authors)
-
-@app.route("/wishlist")
-def wishlist():
-    return render_template("wishlist.html")
 
 # something went really bad
 @app.errorhandler(500)
