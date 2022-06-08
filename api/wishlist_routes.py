@@ -22,7 +22,7 @@ from http import HTTPStatus
 from ..cache import cache
 
 # update name-> V-----V     
-api = Blueprint('<name>_routes', __name__)
+api = Blueprint('wishlist_routes', __name__)
 
 # example route definition
 # the decorator below starts with `@api` because that what the blueprint was name on line 14

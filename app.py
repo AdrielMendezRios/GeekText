@@ -9,6 +9,7 @@ from .cache import cache
 # from .api.blueprintTemplate import api as whateverIcalledItHere
 from .api.book_routes import api as book_routes
 from .api.author_routes import api as author_routes
+from .api.wishlist_routes import api as wishlist_routes
 
 # create flask app 
 app = Flask(__name__)
@@ -18,6 +19,7 @@ app = Flask(__name__)
 # app.register_blueprint(whateverIcalledItHere)
 app.register_blueprint(book_routes)
 app.register_blueprint(author_routes)
+app.register_blueprint(wishlist_routes)
 
 
 # config cache
@@ -44,10 +46,6 @@ def home():
     books = db.session.query(Book).all()
     authors = db.session.query(Author).all()
     return render_template("index.html", books=books, authors=authors)
-
-@app.route("/wishlist")
-def wishlist():
-    return render_template("wishlist.html")
 
 # something went really bad
 @app.errorhandler(500)
