@@ -10,7 +10,6 @@ from .cache import cache
 from .api.book_routes import api as book_routes
 from .api.author_routes import api as author_routes
 
-
 # create flask app 
 app = Flask(__name__)
 
