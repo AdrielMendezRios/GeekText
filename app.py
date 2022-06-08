@@ -46,6 +46,10 @@ def home():
     authors = db.session.query(Author).all()
     return render_template("index.html", books=books, authors=authors)
 
+@app.route("/wishlist")
+def wishlist():
+    return render_template("wishlist.html")
+
 # something went really bad
 @app.errorhandler(500)
 def internal_error(error):
