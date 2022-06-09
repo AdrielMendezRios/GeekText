@@ -21,7 +21,7 @@ class Book(db.Model):
     description     = db.Column(db.String(250), nullable=True)
     title           = db.Column(db.String(100), nullable=True)
     publisher       = db.Column(db.String(100), nullable=True)
-    
+    wishlists       = db.Column(db.Integer,     db.ForeignKey('wishlists.id'), nullable=True)
     
     # helper function to format date for as_dict function
     def set_value(self, name):
@@ -53,6 +53,26 @@ class Author(db.Model):
     
     def __repr__(self):
         return f"{self.first_name} {self.last_name}. Bio: {self.bio}"
+
+
+class Wishlist(db.Model):
+    __tablename__ = 'wishlists'
+
+    id              = db.Column(db.Integer, primary_key=True, unique=True)
+    user            = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    books           = db.relationship('Book', backref='wishlist')
+
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+class User(db.Model):
+    __tablename__ = 'users'
+
+    id                  = db.Column(db.Integer, primary_key=True, unique=True)
+    wishlist            = db.relationship('Wishlist', backref='users')
+
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 """
     the class below are Marshmallow schema classes for the sqlalchemy classes above.
