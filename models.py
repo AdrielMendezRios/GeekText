@@ -1,8 +1,11 @@
+from collections import UserList
 from dataclasses import fields
 from flask_sqlalchemy import SQLAlchemy
 from datetime import  date
 from flask_marshmallow import Marshmallow
 from marshmallow import ValidationError, validates, RAISE, fields, pprint
+from pyparsing import dblSlashComment
+from sqlalchemy import false
 
 
 db = SQLAlchemy()
@@ -26,8 +29,7 @@ class Book(db.Model):
     shoppingCarts   = db.Column(db.Integer,     db.ForeignKey('shoppingCarts.id'), nullable=True)
     ratings         = db.relationship('Rating', backref='book')
     comments        = db.relationship('Comment', backref='book')
-    
-    
+
     # helper function to format date for as_dict function
     def set_value(self, name):
         val = getattr(self, name)
@@ -100,11 +102,7 @@ class User(db.Model):
     shoppingCart        = db.relationship('ShoppingCart', backref='user', uselist=False)
     comments            = db.relationship('Comment', backref='user')
     ratings             = db.relationship('Rating', backref='user')
-    emailAddress        = db.Column(db.String(50), nullable=True)
-    homeAddress         = db.Column(db.String(100), nullable=True)
     password            = db.Column(db.String(50), nullable=True)
-    creditCard          = db.Column(db.String(50), nullable=True)
-    
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -174,7 +172,7 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
     
     wishlist = fields.Nested(lambda: WishlistSchema(only=('books',)))
     shoppingCart = fields.Nested(lambda: ShoppingCartSchema(only=('books',)))
-    
+
 class ShoppingCartSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = ShoppingCart
@@ -184,7 +182,6 @@ class ShoppingCartSchema(ma.SQLAlchemyAutoSchema):
     user = fields.Nested(UserSchema)
     books = fields.Nested(BookSchema)
 
-
 class WishlistSchema(ma.SQLAlchemyAutoSchema):
     
     class Meta:
@@ -193,9 +190,7 @@ class WishlistSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
     
     user = fields.Nested(UserSchema)
-    books = fields.Nested('BookSchema', many=True)
-
-
+    books = fields.Nested(BookSchema)
     
 class RatingSchema(ma.SQLAlchemyAutoSchema):
     
@@ -217,3 +212,4 @@ class CommentSchema(ma.SQLAlchemyAutoSchema):
 
     book = fields.Nested(BookSchema)
     user = fields.Nested(UserSchema)
+
