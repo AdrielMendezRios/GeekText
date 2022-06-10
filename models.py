@@ -1,8 +1,11 @@
+from collections import UserList
 from dataclasses import fields
 from flask_sqlalchemy import SQLAlchemy
 from datetime import  date
 from flask_marshmallow import Marshmallow
 from marshmallow import ValidationError, validates, RAISE, fields, pprint
+from pyparsing import dblSlashComment
+from sqlalchemy import false
 
 db = SQLAlchemy()
 ma = Marshmallow()
@@ -21,6 +24,8 @@ class Book(db.Model):
     description     = db.Column(db.String(250), nullable=True)
     title           = db.Column(db.String(100), nullable=True)
     publisher       = db.Column(db.String(100), nullable=True)
+    wishlists       = db.Column(db.Integer,     db.ForeignKey('wishlists.id'), nullable=True)
+    shoppingCarts   = db.Column(db.Integer,     db.ForeignKey('shoppingCarts.id'), nullable=True)
     
     
     # helper function to format date for as_dict function
@@ -54,6 +59,54 @@ class Author(db.Model):
     def __repr__(self):
         return f"{self.first_name} {self.last_name}. Bio: {self.bio}"
 
+
+class Wishlist(db.Model):
+    __tablename__ = 'wishlists'
+    
+    
+    id                  = db.Column(db.Integer, primary_key=True, unique=True)
+    user_id             = db.Column(db.Integer,db.ForeignKey('users.id'), nullable=True)
+    books               = db.relationship('Book', backref='wishlist')
+    
+    
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    
+    def __repr__(self) -> str:
+            return f""
+
+class ShoppingCart(db.Model):
+    __tablename__ = 'shoppingCarts'
+    
+    id                  = db.Column(db.Integer, primary_key=True, unique=True)
+    user_id             = db.Column(db.Integer,db.ForeignKey('users.id'), nullable=True)
+    books               = db.relationship('Book', backref='shoppingcart')
+
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    
+    def __repr__(self) -> str:
+        return f""
+    
+class User(db.Model):
+    __tablename__ = 'users'
+    
+    id                  = db.Column(db.Integer, primary_key=True, unique=True)
+    username            = db.Column(db.String(50), nullable=True)
+    first_name          = db.Column(db.String(50), nullable=True)
+    last_name           = db.Column(db.String(50), nullable=True)
+    isAdmin             = db.Column(db.Boolean, default=False)
+    wishlist            = db.relationship('Wishlist', backref='user', uselist=False)
+    shoppingCart        = db.relationship('ShoppingCart', backref='user', uselist=False)
+
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    
+    def __repr__(self) -> str:
+        return f""
+
+
+
 """
     the class below are Marshmallow schema classes for the sqlalchemy classes above.
     i use them for validation but can also be used for (de)serializing the ORM objects
@@ -73,6 +126,7 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
         if not isbn_cleaned.isnumeric():
             raise ValidationError(f"Invalid ISBN: {val}. must be a string containing ONLY numbers, '-' or a spaces ")
 
+
 class AuthorSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Author
@@ -80,4 +134,32 @@ class AuthorSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
 
     books = fields.Nested(BookSchema, many=True)
+
+class UserSchema(ma.SQLAlchemyAutoSchema):
+    
+    class Meta:
+        model = User
+        include_relationships = True
+        include_fk = True
+    
+    wishlist = fields.Nested(lambda: WishlistSchema(only=('books',)))
+    shoppingCart = fields.Nested(lambda: ShoppingCartSchema(only=('books',)))
+class ShoppingCartSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = ShoppingCart
+        include_relationships = True
+        include_fk = True
+    
+    user = fields.Nested(UserSchema)
+    books = fields.Nested(BookSchema)
+    
+class WishlistSchema(ma.SQLAlchemyAutoSchema):
+    
+    class Meta:
+        model = Wishlist
+        include_relationship = True
+        include_fk = True
+    
+    user = fields.Nested(UserSchema)
+    books = fields.Nested(BookSchema)
 
