@@ -127,6 +127,10 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
         isbn_cleaned = val.translate({ord("-"):None, ord(" "): None }) # remove "-" and spaces from isbn string
         if not isbn_cleaned.isnumeric():
             raise ValidationError(f"Invalid ISBN: {val}. must be a string containing ONLY numbers, '-' or a spaces ")
+    
+    # optional fields to create author if they are provided when creating book
+    first_name = fields.String()
+    last_name = fields.String()
 
 
 class AuthorSchema(ma.SQLAlchemyAutoSchema):

@@ -107,6 +107,12 @@ def add_book():
                 return jsonify(
                     message={"Error":f"Book with ISBN:{body['isbn']} already exists."}), HTTPStatus.FORBIDDEN
         
+
+        
+        # temp vars if body has 'first_name' AND 'last_name', then pop them from body
+        tmpfname = body.pop('first_name', None)
+        tmplname = body.pop('last_name', None)
+        
         # create book obj
         new_book = Book(**body)
         
@@ -114,6 +120,11 @@ def add_book():
         if 'author_id' in body:
             author = Author.query.get(body['author_id'])
             new_book.author = author
+        # check to see if body has first_name & last_name keys, if so create Author
+        elif tmpfname and tmplname:
+            author = Author(first_name=tmpfname, last_name=tmplname, publisher=body['publisher'])
+            new_book.author = author
+            
         
         try:
             db.session.add(new_book)
