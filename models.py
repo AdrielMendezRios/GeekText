@@ -26,14 +26,10 @@ class Book(db.Model):
     title           = db.Column(db.String(100), nullable=True)
     publisher       = db.Column(db.String(100), nullable=True)
     wishlists       = db.Column(db.Integer,     db.ForeignKey('wishlists.id'), nullable=True)
-<<<<<<< HEAD
     shoppingCarts   = db.Column(db.Integer,     db.ForeignKey('shoppingCarts.id'), nullable=True)
     ratings         = db.relationship('Rating', backref='book')
     comments        = db.relationship('Comment', backref='book')
 
-=======
-    
->>>>>>> 4fb2978 (Added wishlist route for POST and GET)
     # helper function to format date for as_dict function
     def set_value(self, name):
         val = getattr(self, name)
@@ -68,7 +64,7 @@ class Author(db.Model):
 
 class Wishlist(db.Model):
     __tablename__ = 'wishlists'
-    
+
     id                  = db.Column(db.Integer, primary_key=True, unique=True)
     user_id             = db.Column(db.Integer,db.ForeignKey('users.id'), nullable=True)
     books               = db.relationship('Book', backref='wishlist')
@@ -113,6 +109,30 @@ class User(db.Model):
     def __repr__(self) -> str:
         return f""
 
+class Rating(db.Model):
+    __tablename__ ='ratings'
+    
+    id              = db.Column(db.Integer, primary_key=True, unique=True)
+    book_id         = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    rating          = db.Column(db.Integer)
+    
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    
+class Comment(db.Model):
+    __tablename__ = 'comments'
+    
+    id              = db.Column(db.Integer, primary_key=True, unique=True)
+    book_id         = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    comment_text    = db.Column(db.String(200))
+    
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+    def __repr__(self) -> str:
+        return f""
 
 """
     the class below are Marshmallow schema classes for the sqlalchemy classes above.
