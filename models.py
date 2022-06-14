@@ -1,9 +1,11 @@
+from collections import UserList
 from dataclasses import fields
 from flask_sqlalchemy import SQLAlchemy
 from datetime import  date
 from flask_marshmallow import Marshmallow
 from marshmallow import ValidationError, validates, RAISE, fields, pprint
-
+from pyparsing import dblSlashComment
+from sqlalchemy import false
 
 
 db = SQLAlchemy()
@@ -108,30 +110,7 @@ class User(db.Model):
     def __repr__(self) -> str:
         return f""
 
-class Rating(db.Model):
-    __tablename__ ='ratings'
-    
-    id              = db.Column(db.Integer, primary_key=True, unique=True)
-    book_id         = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
-    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    rating          = db.Column(db.Integer)
-    
-    def as_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
-    
-class Comment(db.Model):
-    __tablename__ = 'comments'
-    
-    id              = db.Column(db.Integer, primary_key=True, unique=True)
-    book_id         = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
-    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    comment_text    = db.Column(db.String(200))
-    
-    def as_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
-    def __repr__(self) -> str:
-        return f""
 
 """
     the class below are Marshmallow schema classes for the sqlalchemy classes above.
@@ -211,24 +190,3 @@ class CommentSchema(ma.SQLAlchemyAutoSchema):
     book = fields.Nested(BookSchema)
     user = fields.Nested(UserSchema)
 
-
-    
-class RatingSchema(ma.SQLAlchemyAutoSchema):
-    
-    class Meta:
-        model = Rating
-        include_relationships = True
-        include_fk = True
-
-    book = fields.Nested(BookSchema)
-    user = fields.Nested(UserSchema)
-
-class CommentSchema(ma.SQLAlchemyAutoSchema):
-    
-    class Meta:
-        model = Comment
-        include_relationships = True
-        include_fk = True
-
-    book = fields.Nested(BookSchema)
-    user = fields.Nested(UserSchema)

@@ -10,6 +10,7 @@ from .cache import cache
 from .api.book_routes import api as book_routes
 from .api.author_routes import api as author_routes
 from .api.wishlist_routes import api as wishlist_routes
+from .api.shopping_cart import api as shopping_cart_routes
 
 # create flask app 
 app = Flask(__name__)
@@ -20,6 +21,7 @@ app = Flask(__name__)
 app.register_blueprint(book_routes)
 app.register_blueprint(author_routes)
 app.register_blueprint(wishlist_routes)
+app.register_blueprint(shopping_cart_routes)
 
 # config cache
 app.config['CACHE_TYPE'] = 'simple'
