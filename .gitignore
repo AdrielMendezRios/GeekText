@@ -5,6 +5,10 @@ migrations/
 
 api/__pycache__
 
+# Wishlist
+.idea
+wishlist.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
