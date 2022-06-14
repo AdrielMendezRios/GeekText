@@ -14,7 +14,7 @@ import json
 from flask import request, jsonify, Blueprint
 
 # add your models to the models.py file then import them here
-from ..models import db, Book, Author, ma, BookSchema
+from ..models import db, Book, Author, ma, BookSchema, User, ShoppingCart
 from dateutil.parser import parse
 from http import HTTPStatus
 
@@ -30,3 +30,75 @@ api = Blueprint('shopping_cart_routes', __name__)
 @cache.cached(timeout=5) # add this decorator to cache data on GET routes (this one caches data for 5 seconds)
 def routeFunction():
     return jsonify(message={"Success": f"Blueprint {api.name} configured!"})
+
+
+@api.route("/shopping_cart", methods=['POST'])  
+def add_shopping_cart():
+    username = request.json['username']
+    user = User.query.filter_by(username=username).first()
+    shopping_cart = ShoppingCart(user=user)
+
+    try:
+        db.session.add(shopping_cart)
+        db.session.commit()
+    except Exception as e:
+        return jsonify({"Error": "something went wrong"}), 500
+
+    return jsonify({"user": user.as_dict(), "shopping cart": shopping_cart.as_dict()}), 200
+
+@api.route("/adduser", methods=['POST'])
+def adduser():
+    user = User(**request.json)
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({"user": user.as_dict()}), 200    
+
+@api.route("/shopping_cart", methods=['PUT'])
+def update_shopping_cart():
+    if not 'username' in request.json:
+        return jsonify({"Error": "Did not provide username in request body"}), 500
+    if not 'isbn' in request.json:
+        return jsonify({"Error": "Did not provide isbn in request body"}), 500   
+    username=request.json['username']
+    isbn=request.json['isbn']
+
+
+    user = User.query.filter_by(username=username).first()
+    book = Book.query.filter_by(isbn=isbn).first()
+
+    if user.shoppingCart is None:
+        shopping_cart = ShoppingCart(user=user,book=book)
+        try:
+            db.session.add(shopping_cart)
+            db.session.commit()
+        except Exception as e:
+            return jsonify({"Error": "something went wrong"}), 500
+
+    else: 
+        try:
+            shopping_cart=ShoppingCart.query.get(user.shoppingCart.id)
+            shopping_cart.books.append(book)
+            db.session.add(shopping_cart)
+            db.session.commit()
+
+        except Exception as e:
+            print (e.text)
+            return jsonify({"Error": "something went wrong"}), 500            
+
+    books = user.shoppingCart.books 
+    print("\n\n\n", dir(books), "\n\n\n")
+    books = [book.as_dict() for book in books]
+
+    return jsonify({"shopping_cart":books}), 200      
+
+#new delete book route
+    #user = User.query.filter_by(username=username)
+    #books = user.shoppingCart.books
+#for book in books:
+    #if book.isbn == request.json['isbn']:
+        #books.remove(book)
+#db.session.commit()    
+    
+#new retrieve shopping cart route
+    #use lines 88,90, 92
+
