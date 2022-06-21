@@ -91,6 +91,32 @@ def update_shopping_cart():
 
     return jsonify({"shopping_cart":books}), 200      
 
+@api.route("/deletebook", methods=['PUT'])
+def delete_book():
+    user = request.json['username']
+    book = request.json['isbn']
+
+    user = User.query.filter_by(username=username).first()
+    books = User.shoppingCart.books
+
+    if book.isbn == request.json['isbn']:
+        books.remove(book)
+    db.session.commit()    
+
+@api.route("/retrieve_shopping_cart", methods = ['GET'])   
+def retrieve_shopping_cart():
+    username=request.json['username']
+
+    user = User.query.filter_by(username=username).first()
+
+    books = user.shoppingCart.books
+    books = [book.as_dict() for book in books]
+
+    return jsonify({"shopping_cart":books}), 200      
+
+
+
+
 #new delete book route
     #user = User.query.filter_by(username=username)
     #books = user.shoppingCart.books
