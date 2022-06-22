@@ -56,6 +56,23 @@ def add_user():
 
     return jsonify({"user":user.as_dict(), "wishlist":wishlist.as_dict()}), 200
 
+@api.route("/wishlist/add", methods=['POST'])
+def add_book():
+
+    user = User.query.filter_by(username=request.json['username']).first()
+    wishlist = Wishlist.query.get(user.wishlist.id)
+    book = Book.query.filter_by(isbn=request.json['isbn']).first()
+
+    wishlist.books.append(book)
+    books = [book.as_dict() for book in wishlist.books]
+
+    #exists = db.session.query(book).filter_by(isbn=book.isbn).scalar()
+
+    #if bool(db.session.query(book).filter_by(isbn=book.isbn).first):
+    return jsonify({"wishlist":books})
+    #else:
+        #return jsonify({"Error: No book exists"})
+
 
 # Getting a user's wishlist by its id
 @api.route("/user/<id>", methods=['GET'])
