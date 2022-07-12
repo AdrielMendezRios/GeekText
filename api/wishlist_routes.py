@@ -95,15 +95,18 @@ def add_book():
     wishlist = Wishlist.query.get(user.wishlist.id)
     book = Book.query.filter_by(isbn=request.json['isbn']).first()
 
-    wishlist.books.append(book)
+    if not book:
+        return jsonify({"Error": "No book exists"})
+
+
     books = [book.as_dict() for book in wishlist.books]
 
     #exists = db.session.query(book).filter_by(isbn=book.isbn).scalar()
 
-    #if bool(db.session.query(book).filter_by(isbn=book.isbn).first):
+    wishlist.books.append(book)
+    db.session.commit()
     return jsonify({"wishlist":books})
-    #else:
-        #return jsonify({"Error: No book exists"})
+
 
 
 # Getting a user's wishlist by its id
