@@ -6,6 +6,7 @@
 from email import message
 import json
 from flask import request, jsonify, Blueprint
+from flask import Flask, url_for, render_template
 
 from ..models import db, Book, Author, ma, BookSchema, User, Rating, Comment
 from dateutil.parser import parse
@@ -16,9 +17,7 @@ from ..cache import cache
 
 api = Blueprint('rating_routes', __name__)
 
-# example route definition
-# the decorator below starts with `@api` because that what the blueprint was name on line 14
-@api.route("/route", methods=['GET'])
-@cache.cached(timeout=5) # add this decorator to cache data on GET routes (this one caches data for 5 seconds)
-def routeFunction():
-    return jsonify(message={"Success": f"Blueprint {api.name} configured!"})
+@api.route('/rating',methods=['GET','POST'])
+def home():
+        #return jsonify(message={"Success": f"Blueprint {api.name} configured!"})
+ return render_template ('starRating.html')
