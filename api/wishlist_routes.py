@@ -110,7 +110,7 @@ def get_user(id):
 def remove_book(id, isbn):
 
     wishlist = Wishlist.query.get(id)
-    user = User.query.filter_by(wishlist.user_id)
+    user = User.query.get(wishlist.user_id)
     book = Book.query.filter_by(isbn=isbn).first()
 
     if not wishlist:
