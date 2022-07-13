@@ -190,6 +190,7 @@ class WishlistSchema(ma.SQLAlchemyAutoSchema):
     
     user = fields.Nested(UserSchema)
     books = fields.Nested(BookSchema)
+
     
 class RatingSchema(ma.SQLAlchemyAutoSchema):
     
