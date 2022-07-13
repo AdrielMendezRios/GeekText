@@ -192,7 +192,7 @@ class WishlistSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
     
     user = fields.Nested(UserSchema)
-    books = fields.Nested(BookSchema)
+    books = fields.Nested('BookSchema', many=True)
 
 
     
