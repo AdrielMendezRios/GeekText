@@ -125,6 +125,7 @@ def remove_book(id, isbn):
     wishlist.books.remove(book)
     db.session.commit()
 
+
     books = [book.as_dict() for book in wishlist.books]
     shopping_cart_books = [book.as_dict() for book in shopping_cart.books]
 
