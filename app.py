@@ -9,17 +9,17 @@ from .cache import cache
 # from .api.blueprintTemplate import api as whateverIcalledItHere
 from .api.book_routes import api as book_routes
 from .api.author_routes import api as author_routes
-
+from .api.profile_management_routes import api as profile_management_routes
 
 # create flask app 
 app = Flask(__name__)
-
 
 # Register route blueprints below
 # app.register_blueprint(whateverIcalledItHere)
 app.register_blueprint(book_routes)
 app.register_blueprint(author_routes)
-
+app.register_blueprint(profile_management_routes)
+app.config['SECRET_KEY'] = "SECRET!"
 
 # config cache
 app.config['CACHE_TYPE'] = 'simple'
