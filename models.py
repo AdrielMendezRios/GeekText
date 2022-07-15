@@ -183,7 +183,8 @@ class ShoppingCartSchema(ma.SQLAlchemyAutoSchema):
     
     user = fields.Nested(UserSchema)
     books = fields.Nested(BookSchema)
-    
+
+
 class WishlistSchema(ma.SQLAlchemyAutoSchema):
     
     class Meta:
@@ -205,6 +206,7 @@ class RatingSchema(ma.SQLAlchemyAutoSchema):
 
     book = fields.Nested(BookSchema)
     user = fields.Nested(UserSchema)
+
 
 class CommentSchema(ma.SQLAlchemyAutoSchema):
     
