@@ -101,8 +101,6 @@ def add_book():
     if not user:
         return jsonify({"Error": "No user exists"}), 404
 
-    #exists = db.session.query(book).filter_by(isbn=book.isbn).scalar()
-
     wishlist.books.append(book)
     db.session.commit()
 
