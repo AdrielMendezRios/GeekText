@@ -13,7 +13,7 @@ import jwt
 # from .api.blueprintTemplate import api as whateverIcalledItHere
 from .api.book_routes import api as book_routes
 from .api.author_routes import api as author_routes
-
+from .api.shopping_cart import api as shopping_cart_routes
 
 # create flask app 
 app = Flask(__name__)
@@ -24,7 +24,9 @@ app = Flask(__name__)
 app.register_blueprint(book_routes)
 app.register_blueprint(author_routes)
 
+
 app.config['SECRET_KEY'] = "SECRET!"
+
 
 # config cache
 app.config['CACHE_TYPE'] = 'simple'
