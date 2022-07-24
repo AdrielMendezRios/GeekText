@@ -14,7 +14,7 @@ import json
 from flask import request, jsonify, Blueprint
 
 # add your models to the models.py file then import them here
-from ..models import db, Book, Author, ma, BookSchema
+from ..models import ShoppingCart, db, Book, Author, ma, BookSchema, User, UserSchema
 from dateutil.parser import parse
 from http import HTTPStatus
 
@@ -30,3 +30,7 @@ api = Blueprint('<name>_routes', __name__)
 @cache.cached(timeout=5) # add this decorator to cache data on GET routes (this one caches data for 5 seconds)
 def routeFunction():
     return jsonify(message={"Success": f"Blueprint {api.name} configured!"})
+
+
+
+

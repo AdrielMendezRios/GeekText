@@ -4,6 +4,12 @@ from ..models import db, Book, Author, ma, BookSchema, AuthorSchema
 from dateutil.parser import parse
 from http import HTTPStatus
 from ..cache import cache
+from ..auth import token_required, admin_required
+
+
+# import datetime
+# from werkzeug.security import generate_password_hash,check_password_hash
+# import jwt
 
 api = Blueprint('author_routes', __name__)
 
@@ -11,7 +17,8 @@ isAdmin = True
 
 # POST (create) author
 @api.route("/authors", methods=['POST'])
-def add_author(fname=None, lname=None):
+@admin_required
+def add_author(username):
     """ This endpoint creates a new Author
         HTTP Method: POST
         Headers:
@@ -74,6 +81,7 @@ def add_author(fname=None, lname=None):
 # GET author
 @api.route("/authors/<id>", methods=['GET'])
 @cache.cached(timeout=5)
+@token_required
 def author_details(id):
     """ This endpoint returns an author
         HTTP Method: GET
@@ -108,7 +116,8 @@ def author_details(id):
 # GET all authors
 @api.route("/authors", methods=['GET'])
 @cache.cached(timeout=5)
-def all_authors():
+@token_required
+def all_authors(username):
     """ This endpoint returns all authors in server
         HTTP Method: GET
         Headers:
@@ -135,7 +144,8 @@ def all_authors():
 # GET books by author
 @api.route("/authors/<author_id>/books", methods=['GET'])
 @cache.cached(timeout=5)
-def books_by_author(author_id):
+@token_required
+def books_by_author(username, author_id):
     """ This endpoint returns an author
         HTTP Method: GET
         Headers:
@@ -172,7 +182,8 @@ def books_by_author(author_id):
 
 # PUT (update) author
 @api.route("/authors", methods=['PUT'])
-def update_author():
+@admin_required
+def update_author(username):
     """ This endpoint updates author with provided id
         HTTP Method: PUT
         Headers:
@@ -240,7 +251,8 @@ def update_author():
 
 # DELETE author (should prob never be used unless you're testing)
 @api.route("/authors", methods=['DELETE'])
-def delete_author():
+@admin_required
+def delete_author(username):
     """ This endpoint deletes Author with given ID
         HTTP Method: DELETE
         Headers:

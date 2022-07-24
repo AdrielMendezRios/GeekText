@@ -4,8 +4,6 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import  date
 from flask_marshmallow import Marshmallow
 from marshmallow import ValidationError, validates, RAISE, fields, pprint
-from pyparsing import dblSlashComment
-from sqlalchemy import false
 
 db = SQLAlchemy()
 ma = Marshmallow()
@@ -24,9 +22,10 @@ class Book(db.Model):
     description     = db.Column(db.String(250), nullable=True)
     title           = db.Column(db.String(100), nullable=True)
     publisher       = db.Column(db.String(100), nullable=True)
-    wishlists       = db.Column(db.Integer,     db.ForeignKey('wishlists.id'), nullable=True)
-    shoppingCarts   = db.Column(db.Integer,     db.ForeignKey('shoppingCarts.id'), nullable=True)
-    
+    wishlists       = db.Column(db.Integer,     db.ForeignKey('wishlists.id'))
+    shoppingCarts   = db.Column(db.Integer,     db.ForeignKey('shoppingCarts.id'))
+    ratings         = db.relationship('Rating', backref='book')
+    comments        = db.relationship('Comment', backref='book')
     
     # helper function to format date for as_dict function
     def set_value(self, name):
@@ -36,7 +35,7 @@ class Book(db.Model):
         return val
 
     def as_dict(self):
-        return {c.name: self.set_value(c.name) for c in self.__table__.columns}
+        return {c.name: self.set_value(c.name) for c in self.__table__.columns if c.name not in ['wishlists', 'shoppingCarts']}
 
     def __repr__(self) -> str:
         return f"{self.title} by {str.title(self.author.last_name)}, {str.title(self.author.first_name)} (ISBN: {self.isbn})"
@@ -98,13 +97,44 @@ class User(db.Model):
     isAdmin             = db.Column(db.Boolean, default=False)
     wishlist            = db.relationship('Wishlist', backref='user', uselist=False)
     shoppingCart        = db.relationship('ShoppingCart', backref='user', uselist=False)
+    comments            = db.relationship('Comment', backref='user')
+    ratings             = db.relationship('Rating', backref='user')
+    password            = db.Column(db.String(50))
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
     
-    def __repr__(self) -> str:
+    def __repr__(self):
+        return f"{self.username}, isAdmin: {self.isAdmin}"
+
+
+    def __repr__(self):
         return f""
 
+class Rating(db.Model):
+    __tablename__ ='ratings'
+    
+    id              = db.Column(db.Integer, primary_key=True, unique=True)
+    book_id         = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    rating          = db.Column(db.Integer)
+    
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    
+class Comment(db.Model):
+    __tablename__ = 'comments'
+    
+    id              = db.Column(db.Integer, primary_key=True, unique=True)
+    book_id         = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    comment_text    = db.Column(db.String(200))
+    
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+    def __repr__(self):
+        return f""
 
 
 """
@@ -115,7 +145,7 @@ class User(db.Model):
 class BookSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Book
-        include_relationships = True
+        include_relationships = False
         include_fk = True
         dateformat = '%Y-%m-%d'
         unknown = RAISE
@@ -125,6 +155,10 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
         isbn_cleaned = val.translate({ord("-"):None, ord(" "): None }) # remove "-" and spaces from isbn string
         if not isbn_cleaned.isnumeric():
             raise ValidationError(f"Invalid ISBN: {val}. must be a string containing ONLY numbers, '-' or a spaces ")
+    
+    # optional fields to create author if they are provided when creating book
+    first_name = fields.String()
+    last_name = fields.String()
 
 
 class AuthorSchema(ma.SQLAlchemyAutoSchema):
@@ -163,3 +197,25 @@ class WishlistSchema(ma.SQLAlchemyAutoSchema):
     user = fields.Nested(UserSchema)
     books = fields.Nested(BookSchema)
 
+
+    
+class RatingSchema(ma.SQLAlchemyAutoSchema):
+    
+    class Meta:
+        model = Rating
+        include_relationships = True
+        include_fk = True
+
+    book = fields.Nested(BookSchema)
+    user = fields.Nested(UserSchema)
+
+class CommentSchema(ma.SQLAlchemyAutoSchema):
+    
+    class Meta:
+        model = Comment
+        include_relationships = True
+        include_fk = True
+
+    book = fields.Nested(BookSchema)
+    user = fields.Nested(UserSchema)
+    

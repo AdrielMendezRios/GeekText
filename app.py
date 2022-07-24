@@ -1,9 +1,13 @@
 from flask import Flask, url_for, redirect, render_template, request, jsonify
 from flask_migrate import Migrate
-from .models import db, Book, Author, ma, BookSchema, AuthorSchema
+from .models import db, Book, Author, ma, BookSchema, AuthorSchema, User
 from dateutil.parser import parse
 from http import HTTPStatus
 from .cache import cache
+
+from functools import wraps
+import jwt
+
 
 # import blueprint api routes below
 # from .api.blueprintTemplate import api as whateverIcalledItHere
@@ -19,7 +23,10 @@ app = Flask(__name__)
 # app.register_blueprint(whateverIcalledItHere)
 app.register_blueprint(book_routes)
 app.register_blueprint(author_routes)
-app.register_blueprint(shopping_cart_routes)
+
+
+app.config['SECRET_KEY'] = "SECRET!"
+
 
 # config cache
 app.config['CACHE_TYPE'] = 'simple'
@@ -56,6 +63,8 @@ def internal_error(error):
 @app.errorhandler(404)
 def not_found_error(error):
     return jsonify(error_msg={"code":error.code, "description": error.description}), HTTPStatus.NOT_FOUND
+
+
 
 if __name__ == "__main__":
     app.run()
