@@ -29,8 +29,7 @@ from ..cache import cache
 # update name-> V-----V     
 api = Blueprint('profile_management_routes', __name__)
 
-@api.route("/user", methods=['POST'])
-@token_required
+@api.route("/createuser", methods=['POST'])
 def add_user():
     data = request.get_json()
     hashed_password = generate_password_hash(data['password'], method='sha256')
@@ -40,8 +39,7 @@ def add_user():
     db.session.commit()
     return jsonify({"user":user.as_dict()}), 200
 
-@api.route("/login", methods=['POST'])
-@token_required
+@api.route("/gettoken", methods=['POST'])
 def login():
     from ..app import app
     auth = request.authorization  
@@ -57,20 +55,10 @@ def login():
 
     return make_response('could not verify',  401, {'Authentication': '"login required"'})  
 
-# @api.route("/users", methods=['POST'])
-# def add_user():
-#     user = User (**request.json)
-#     db.session.add(user)
-#     db.session.commit()
-#     #add if cases
-#     return jsonify(msg={"in": user.as_dict()}), HTTPStatus.ACCEPTED
-
-@api.route("/users", methods=['GET'])
-@token_required
-def get_user(username):
+@api.route("/user", methods=['GET'])
+def get_user():
     id = request.json['id']
     user = User.query.get(id)
-    print(user)
     if user is None:
         return jsonify(msg={"Error":f"User with id:{id}, does not exist."}), HTTPStatus.NOT_FOUND
     return jsonify(msg={"in": user.as_dict()}), HTTPStatus.ACCEPTED
