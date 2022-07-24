@@ -34,9 +34,9 @@ def admin_required(f):
         if 'Authorization' in request.headers:
             token = request.headers['Authorization']
 
-
+            
         if not token:
-            return jsonify({'msg': 'a valid token is missing'})
+            return jsonify({'msg':'a valid token is missing'})
 
         try:
             from .app import app
@@ -50,5 +50,6 @@ def admin_required(f):
             return jsonify({'message': 'token provided is invalid'}), HTTPStatus.UNAUTHORIZED
 
         return f(current_user, *args, **kwargs)
+
 
     return decorator
