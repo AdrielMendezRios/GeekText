@@ -28,6 +28,7 @@ api = Blueprint('wishlist_routes', __name__)
 # the decorator below starts with `@api` because that what the blueprint was name on line 14
 
 
+# Getting a wishlist by wishlist id
 @api.route("/wishlist/<id>", methods=['GET'])
 @cache.cached(timeout=5) # add this decorator to cache data on GET routes (this one caches data for 5 seconds)
 def get_wishlist(id):
@@ -46,7 +47,7 @@ def get_wishlist(id):
     return jsonify(message={f"{user.username}'s Wishlist ": books}), 200
 
 
-# Creating a user and their wishlist
+# Creating a user with a wishlist and a shopping cart
 @api.route("/user", methods=['POST'])
 def add_user():
 
@@ -67,6 +68,7 @@ def add_user():
     return jsonify({"user": user.as_dict(), "wishlist": wishlist.as_dict()}), 200
 
 
+# Adding a book to a wishlist
 @api.route("/wishlist/add", methods=['POST'])
 def add_book():
 
@@ -103,7 +105,7 @@ def get_user(id):
     return jsonify({"user": user.as_dict(), f"{user.username}'s Wishlist ": books}), 200
 
 
-#
+# Removing a book from a user's wishlist and adding it to the shopping cart
 @api.route("/wishlist/<id>/remove/<isbn>", methods=['PUT'])
 def remove_book(id, isbn):
 
@@ -124,7 +126,6 @@ def remove_book(id, isbn):
     user.shoppingCart.books.append(book)
     wishlist.books.remove(book)
     db.session.commit()
-
 
     books = [book.as_dict() for book in wishlist.books]
     shopping_cart_books = [book.as_dict() for book in shopping_cart.books]
