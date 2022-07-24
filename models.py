@@ -38,7 +38,7 @@ class Book(db.Model):
         return val
 
     def as_dict(self):
-        return {c.name: self.set_value(c.name) for c in self.__table__.columns}
+        return {c.name: self.set_value(c.name) for c in self.__table__.columns if c.name not in ['wishlists', 'shoppingCarts']}
 
     def __repr__(self) -> str:
         return f"{self.title} by {str.title(self.author.last_name)}, {str.title(self.author.first_name)} (ISBN: {self.isbn})"
@@ -103,10 +103,16 @@ class User(db.Model):
     ratings             = db.relationship('Rating', backref='user')
     password            = db.Column(db.String(50), nullable=True)
 
+
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
     
-    def __repr__(self) -> str:
+
+    def __repr__(self):
+        return f"{self.username}, isAdmin: {self.isAdmin}"
+
+
+    def __repr__(self):
         return f""
 
 class Rating(db.Model):
@@ -131,7 +137,11 @@ class Comment(db.Model):
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
+
     def __repr__(self) -> str:
+        return f""
+
+    def __repr__(self):
         return f""
 
 """
@@ -142,7 +152,7 @@ class Comment(db.Model):
 class BookSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Book
-        include_relationships = True
+        include_relationships = False
         include_fk = True
         dateformat = '%Y-%m-%d'
         unknown = RAISE
@@ -152,6 +162,11 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
         isbn_cleaned = val.translate({ord("-"):None, ord(" "): None }) # remove "-" and spaces from isbn string
         if not isbn_cleaned.isnumeric():
             raise ValidationError(f"Invalid ISBN: {val}. must be a string containing ONLY numbers, '-' or a spaces ")
+    
+    # optional fields to create author if they are provided when creating book
+    first_name = fields.String()
+    last_name = fields.String()
+
 
 
 class AuthorSchema(ma.SQLAlchemyAutoSchema):
@@ -172,6 +187,7 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
     wishlist = fields.Nested(lambda: WishlistSchema(only=('books',)))
     shoppingCart = fields.Nested(lambda: ShoppingCartSchema(only=('books',)))
 
+
 class ShoppingCartSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = ShoppingCart
@@ -190,6 +206,7 @@ class WishlistSchema(ma.SQLAlchemyAutoSchema):
     
     user = fields.Nested(UserSchema)
     books = fields.Nested(BookSchema)
+
 
     
 class RatingSchema(ma.SQLAlchemyAutoSchema):

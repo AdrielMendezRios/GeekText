@@ -1,17 +1,21 @@
 from flask import Flask, url_for, redirect, render_template, request, jsonify
 from flask_migrate import Migrate
-from .models import db, Book, Author, ma, BookSchema, AuthorSchema
+from .models import db, Book, Author, ma, BookSchema, AuthorSchema, User
 from dateutil.parser import parse
 from http import HTTPStatus
 from .cache import cache
+
+from functools import wraps
+import jwt
+
 
 # import blueprint api routes below
 # from .api.blueprintTemplate import api as whateverIcalledItHere
 from .api.book_routes import api as book_routes
 from .api.author_routes import api as author_routes
+
 from .api.wishlist_routes import api as wishlist_routes
 from .api.shopping_cart import api as shopping_cart_routes
-
 
 # create flask app 
 app = Flask(__name__)
@@ -23,6 +27,9 @@ app.register_blueprint(book_routes)
 app.register_blueprint(author_routes)
 app.register_blueprint(wishlist_routes)
 app.register_blueprint(shopping_cart_routes)
+
+
+app.config['SECRET_KEY'] = "SECRET!"
 
 
 app.config['SECRET_KEY'] = "SECRET!"
@@ -63,6 +70,8 @@ def internal_error(error):
 @app.errorhandler(404)
 def not_found_error(error):
     return jsonify(error_msg={"code":error.code, "description": error.description}), HTTPStatus.NOT_FOUND
+
+
 
 if __name__ == "__main__":
     app.run()
