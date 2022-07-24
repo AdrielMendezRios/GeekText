@@ -1,13 +1,53 @@
 from sqlalchemy.exc import IntegrityError
 from flask import request, jsonify, Blueprint
-from ..models import db, Book, Author, ma, BookSchema
+from ..models import db, Book, Author, ma, BookSchema, User, UserSchema
 from dateutil.parser import parse
 from http import HTTPStatus
 from ..cache import cache
 
+import datetime
+from werkzeug.security import generate_password_hash,check_password_hash
+import jwt
+
 api = Blueprint('book_routes', __name__)
 
 isAdmin = True
+
+# for testing
+@api.route("/user", methods=['POST'])
+def add_user():
+    data = request.get_json()
+    hashed_password = generate_password_hash(data['password'], method='sha256')
+    data['password'] = hashed_password
+    user = User(**data)
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({"user":user.as_dict()}), 200
+
+@api.route("/login", methods=['POST'])
+def login():
+    from ..app import app
+    auth = request.authorization
+    if not auth or not auth.username or not auth.password:
+        return make_response('could not verify', 401, {'Authentication': 'login required"'})
+
+    user = User.query.filter_by(username=auth.username).first()
+    print(check_password_hash(user.password, auth.password))
+    if check_password_hash(user.password, auth.password):
+        token = jwt.encode({'username' : user.username, 'id': user.id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=1000)}, app.config['SECRET_KEY'], "HS256")
+
+        return jsonify({'token' : token})
+
+    return make_response('could not verify',  401, {'Authentication': '"login required"'})
+
+# create an endpoint to get all users
+@api.route("/users", methods=['GET'])
+def get_users():
+    users = User.query.all()
+    users_schema = UserSchema(many=True)
+    result = users_schema.dump(users)
+    return jsonify(result)
+
 
 # POST (create) book
 @api.route("/books", methods=['POST'])

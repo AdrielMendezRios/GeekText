@@ -25,6 +25,9 @@ app.register_blueprint(wishlist_routes)
 app.register_blueprint(shopping_cart_routes)
 
 
+app.config['SECRET_KEY'] = "SECRET!"
+
+
 # config cache
 app.config['CACHE_TYPE'] = 'simple'
 

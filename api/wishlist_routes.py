@@ -20,6 +20,7 @@ from http import HTTPStatus
 
 # keep this if an endpoint requires caching 
 from ..cache import cache
+from ..auth import token_required, admin_required
 
 # update name-> V-----V     
 api = Blueprint('wishlist_routes', __name__)
@@ -27,13 +28,18 @@ api = Blueprint('wishlist_routes', __name__)
 # example route definition
 # the decorator below starts with `@api` because that what the blueprint was name on line 14
 
-# Getting a wishlist by wishlist id
-@api.route("/wishlist/<id>", methods=['GET'])
+# Getting a wishlist by user_id
+@api.route("/wishlist/<user_id>", methods=['GET'])
 @cache.cached(timeout=5) # add this decorator to cache data on GET routes (this one caches data for 5 seconds)
-def get_wishlist(id):
+@token_required
+def get_wishlist(username, user_id):
 
-    wishlist = Wishlist.query.get(id)
-    user = User.query.get(wishlist.user_id)
+    user = User.query.get(user_id)
+
+    if user.wishlist is None:
+        return jsonify({"Error": "No wishlist exists for user"})
+
+    wishlist = Wishlist.query.get(user.wishlist.id)
 
     if not user:
         return jsonify({"Error": "No user exists"}), 404
@@ -47,18 +53,19 @@ def get_wishlist(id):
 
 
 # Creating a user with a wishlist and a shopping cart
-@api.route("/user", methods=['POST'])
-def add_user():
+@api.route("/add/wishlist", methods=['POST'])
+@token_required
+def add_wishlist(username):
 
-    user = User(**request.json)
+    user = User.query.get(request.json['user_id'])
+
+    if user.wishlist:
+        return jsonify({"Error": "User already has a wishlist"})
 
     wishlist = Wishlist(user=user)
-    shopping_cart = ShoppingCart(user=user)
 
     try:
-        db.session.add(user)
         db.session.add(wishlist)
-        db.session.add(shopping_cart)
         db.session.commit()
     except Exception as e:
         print(e)
@@ -69,9 +76,14 @@ def add_user():
 
 # Adding a book to a wishlist
 @api.route("/wishlist/add", methods=['POST'])
-def add_book():
+@token_required
+def add_book(username):
 
     user = User.query.filter_by(username=request.json['username']).first()
+
+    if user.wishlist is None:
+        return jsonify({"Error": "User does not have a wishlist"})
+
     wishlist = Wishlist.query.get(user.wishlist.id)
     book = Book.query.filter_by(isbn=request.json['isbn']).first()
 
@@ -88,28 +100,23 @@ def add_book():
 
     return jsonify({"wishlist": books}), 200
 
-# Getting a user's wishlist by its id
-@api.route("/user/<id>", methods=['GET'])
-def get_user(id):
-
-    user = User.query.get(id)
-    wishlist = Wishlist.query.get(user.wishlist.id)
-
-    if not user:
-        return jsonify({"Error": "No user exists"}), 404
-
-    books = [book.as_dict() for book in wishlist.books]
-
-    return jsonify({"user": user.as_dict(), f"{user.username}'s Wishlist ": books}), 200
-
 
 # Removing a book from a user's wishlist and adding it to the shopping cart
-@api.route("/wishlist/<id>/remove/<isbn>", methods=['PUT'])
-def remove_book(id, isbn):
+@api.route("/wishlist/<user_id>/remove/<isbn>", methods=['PUT'])
+@token_required
+def remove_book(username, user_id, isbn):
 
-    wishlist = Wishlist.query.get(id)
-    user = User.query.get(wishlist.user_id)
+    shopping_cart = None
+    user = User.query.get(user_id)
+
+    if user.wishlist is None:
+        return jsonify({"Error": "No wishlist exist for user"})
+
+    wishlist = Wishlist.query.get(user.wishlist.id)
     book = Book.query.filter_by(isbn=isbn).first()
+
+    if user.shoppingCart is None:
+        shopping_cart = ShoppingCart(user=user)
 
     shopping_cart = ShoppingCart.query.get(user.shoppingCart.id)
 
