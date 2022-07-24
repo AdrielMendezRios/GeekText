@@ -88,27 +88,6 @@ def add_book():
 
     return jsonify({"wishlist": books}), 200
 
-@api.route("/wishlist/add", methods=['POST'])
-def add_book():
-
-    user = User.query.filter_by(username=request.json['username']).first()
-    wishlist = Wishlist.query.get(user.wishlist.id)
-    book = Book.query.filter_by(isbn=request.json['isbn']).first()
-
-    if not book:
-        return jsonify({"Error": "No book exists"}), 404
-
-    if not user:
-        return jsonify({"Error": "No user exists"}), 404
-
-    wishlist.books.append(book)
-    db.session.commit()
-
-    books = [book.as_dict() for book in wishlist.books]
-
-    return jsonify({"wishlist": books}), 200
-
-
 # Getting a user's wishlist by its id
 @api.route("/user/<id>", methods=['GET'])
 def get_user(id):
@@ -145,7 +124,6 @@ def remove_book(id, isbn):
     user.shoppingCart.books.append(book)
     wishlist.books.remove(book)
     db.session.commit()
-
 
     books = [book.as_dict() for book in wishlist.books]
     shopping_cart_books = [book.as_dict() for book in shopping_cart.books]
