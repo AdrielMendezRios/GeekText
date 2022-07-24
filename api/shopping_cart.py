@@ -14,7 +14,7 @@ import json
 from flask import request, jsonify, Blueprint
 
 # add your models to the models.py file then import them here
-from ..models import ShoppingCart, db, Book, Author, ma, BookSchema, User, UserSchema
+from ..models import db, Book, Author, ma, BookSchema
 from dateutil.parser import parse
 from http import HTTPStatus
 
@@ -22,15 +22,11 @@ from http import HTTPStatus
 from ..cache import cache
 
 # update name-> V-----V     
-api = Blueprint('<name>_routes', __name__)
+api = Blueprint('shopping_cart_routes', __name__)
 
 # example route definition
 # the decorator below starts with `@api` because that what the blueprint was name on line 14
-@api.route("/wishlist", methods=['GET'])
+@api.route("/route", methods=['GET'])
 @cache.cached(timeout=5) # add this decorator to cache data on GET routes (this one caches data for 5 seconds)
 def routeFunction():
     return jsonify(message={"Success": f"Blueprint {api.name} configured!"})
-
-
-
-

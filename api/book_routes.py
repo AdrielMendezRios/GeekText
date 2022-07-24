@@ -1,17 +1,67 @@
+from lib2to3.pgen2 import token
 from sqlalchemy.exc import IntegrityError
-from flask import request, jsonify, Blueprint
-from ..models import db, Book, Author, ma, BookSchema
+
+from flask import request, jsonify, Blueprint, make_response
+from ..models import db, Book, Author, ma, BookSchema, User, UserSchema
 from dateutil.parser import parse
 from http import HTTPStatus
 from ..cache import cache
+from ..auth import token_required, admin_required
+
+
+import datetime
+from werkzeug.security import generate_password_hash,check_password_hash
+import jwt
+
+import datetime
+from werkzeug.security import generate_password_hash,check_password_hash
+import jwt
 
 api = Blueprint('book_routes', __name__)
 
 isAdmin = True
 
+# for testing
+@api.route("/user", methods=['POST'])
+def add_user():
+    data = request.get_json()
+    hashed_password = generate_password_hash(data['password'], method='sha256')
+    data['password'] = hashed_password
+    user = User(**data)
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({"user":user.as_dict()}), 200
+
+@api.route("/login", methods=['POST'])
+def login():
+    from ..app import app
+    auth = request.authorization
+    if not auth or not auth.username or not auth.password:
+        return make_response('could not verify', 401, {'Authentication': 'login required"'})
+
+    user = User.query.filter_by(username=auth.username).first()
+    print(check_password_hash(user.password, auth.password))
+
+    if check_password_hash(user.password, auth.password):
+        token = jwt.encode({'username' : user.username, 'id': user.id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=1000)}, app.config['SECRET_KEY'], "HS256")
+
+        return jsonify({'token' : token})
+
+    return make_response('could not verify',  401, {'Authentication': '"login required"'})
+
+# create an endpoint to get all users
+@api.route("/users", methods=['GET'])
+def get_users():
+    users = User.query.all()
+    users_schema = UserSchema(many=True)
+    result = users_schema.dump(users)
+    return jsonify(result)
+
+
 # POST (create) book
 @api.route("/books", methods=['POST'])
-def add_book():
+@admin_required
+def add_book(username):
     """ This endpoint creates a new book with given request body
         HTTP Method: POST
         Headers:
@@ -107,6 +157,12 @@ def add_book():
                 return jsonify(
                     message={"Error":f"Book with ISBN:{body['isbn']} already exists."}), HTTPStatus.FORBIDDEN
         
+
+        
+        # temp vars if body has 'first_name' AND 'last_name', then pop them from body
+        tmpfname = body.pop('first_name', None)
+        tmplname = body.pop('last_name', None)
+        
         # create book obj
         new_book = Book(**body)
         
@@ -114,6 +170,11 @@ def add_book():
         if 'author_id' in body:
             author = Author.query.get(body['author_id'])
             new_book.author = author
+        # check to see if body has first_name & last_name keys, if so create Author
+        elif tmpfname and tmplname:
+            author = Author(first_name=tmpfname, last_name=tmplname, publisher=body['publisher'])
+            new_book.author = author
+            
         
         try:
             db.session.add(new_book)
@@ -125,10 +186,12 @@ def add_book():
                 return jsonify(message={"Error":"fatal error. Rolling back db session."})
             return jsonify(message={"Error": e}), HTTPStatus.INTERNAL_SERVER_ERROR
 
+
 # GET a book by ISBN
 @api.route("/books/<isbn>", methods=['GET'])
 @cache.cached(timeout=5)
-def book_details(isbn: str):
+@token_required
+def book_details(usename, isbn: str):
     """ This endpoint returns the book for a given ISBN
         HTTP Method: GET
         Headers:
@@ -160,10 +223,12 @@ def book_details(isbn: str):
 
     return jsonify(book.as_dict()), HTTPStatus.OK
 
+
 # GET ALL books
 @api.route("/books", methods=['GET'])
 @cache.cached(timeout=5)
-def all_books():
+@token_required
+def all_books(username):
     """ This endpoint returns all books in server
         HTTP Method: GET
         Headers:
@@ -183,11 +248,14 @@ def all_books():
     
     # convert book obj to dict and store in list of book dicts
     books = [book.as_dict() for book in books] 
+        
     return jsonify(books_list=books), HTTPStatus.OK
+
 
 # PUT (update) book 
 @api.route("/books", methods=['PUT'])
-def update_book():
+@admin_required
+def update_book(username):
     """ This endpoint updates a book with ISBN provided
         HTTP Method: PUT
         Headers:
@@ -279,7 +347,8 @@ def update_book():
 
 # DELETE book
 @api.route("/books", methods=['DELETE'])
-def delete_book():
+@admin_required
+def delete_book(username):
     """ This endpoint deletes book with given ISBN
         HTTP Method: DELETE
         Headers:
