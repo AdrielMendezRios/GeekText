@@ -6,7 +6,7 @@ from http import HTTPStatus
 
 def token_required(f):
     @wraps(f)
-    def decorator(args, **kwargs):
+    def decorator(*args, **kwargs):
         token = None
         if 'Authorization' in request.headers:
             token = request.headers['Authorization']
@@ -21,17 +21,17 @@ def token_required(f):
         except:
             return jsonify({'message': 'token is invalid'})
 
-        return f(current_user,args, kwargs)
+        return f(current_user, *args, **kwargs)
     return decorator
 
 
 def admin_required(f):
     @wraps(f)
-    def decorator(*args, kwargs):
+    def decorator(*args, **kwargs):
         token = None
         if 'Authorization' in request.headers:
             token = request.headers['Authorization']
-
+            
         if not token:
             return jsonify({'msg':'a valid token is missing'})
         try:
@@ -44,8 +44,8 @@ def admin_required(f):
         except Exception as e:
             print("exception: ",e)
             return jsonify({'message':'token is not valid'})
-
-
+        
+        
 
         return f(current_user, *args, **kwargs)
     return decorator

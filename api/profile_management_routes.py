@@ -30,6 +30,7 @@ from ..cache import cache
 api = Blueprint('profile_management_routes', __name__)
 
 @api.route("/user", methods=['POST'])
+@token_required
 def add_user():
     data = request.get_json()
     hashed_password = generate_password_hash(data['password'], method='sha256')
@@ -40,6 +41,7 @@ def add_user():
     return jsonify({"user":user.as_dict()}), 200
 
 @api.route("/login", methods=['POST'])
+@token_required
 def login():
     from ..app import app
     auth = request.authorization  
@@ -64,7 +66,7 @@ def login():
 #     return jsonify(msg={"in": user.as_dict()}), HTTPStatus.ACCEPTED
 
 @api.route("/users", methods=['GET'])
-@admin_required
+@token_required
 def get_user(username):
     id = request.json['id']
     user = User.query.get(id)
