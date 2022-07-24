@@ -4,6 +4,9 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import  date
 from flask_marshmallow import Marshmallow
 from marshmallow import ValidationError, validates, RAISE, fields, pprint
+from pyparsing import dblSlashComment
+from sqlalchemy import false
+
 
 db = SQLAlchemy()
 ma = Marshmallow()
@@ -22,11 +25,11 @@ class Book(db.Model):
     description     = db.Column(db.String(250), nullable=True)
     title           = db.Column(db.String(100), nullable=True)
     publisher       = db.Column(db.String(100), nullable=True)
-    wishlists       = db.Column(db.Integer,     db.ForeignKey('wishlists.id'))
-    shoppingCarts   = db.Column(db.Integer,     db.ForeignKey('shoppingCarts.id'))
+    wishlists       = db.Column(db.Integer,     db.ForeignKey('wishlists.id'), nullable=True)
+    shoppingCarts   = db.Column(db.Integer,     db.ForeignKey('shoppingCarts.id'), nullable=True)
     ratings         = db.relationship('Rating', backref='book')
     comments        = db.relationship('Comment', backref='book')
-    
+
     # helper function to format date for as_dict function
     def set_value(self, name):
         val = getattr(self, name)
@@ -61,8 +64,7 @@ class Author(db.Model):
 
 class Wishlist(db.Model):
     __tablename__ = 'wishlists'
-    
-    
+
     id                  = db.Column(db.Integer, primary_key=True, unique=True)
     user_id             = db.Column(db.Integer,db.ForeignKey('users.id'), nullable=True)
     books               = db.relationship('Book', backref='wishlist')
@@ -99,11 +101,13 @@ class User(db.Model):
     shoppingCart        = db.relationship('ShoppingCart', backref='user', uselist=False)
     comments            = db.relationship('Comment', backref='user')
     ratings             = db.relationship('Rating', backref='user')
-    password            = db.Column(db.String(50))
+    password            = db.Column(db.String(50), nullable=True)
+
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
     
+
     def __repr__(self):
         return f"{self.username}, isAdmin: {self.isAdmin}"
 
@@ -133,9 +137,12 @@ class Comment(db.Model):
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
-    def __repr__(self):
+
+    def __repr__(self) -> str:
         return f""
 
+    def __repr__(self):
+        return f""
 
 """
     the class below are Marshmallow schema classes for the sqlalchemy classes above.
@@ -161,6 +168,7 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
     last_name = fields.String()
 
 
+
 class AuthorSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Author
@@ -178,6 +186,8 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
     
     wishlist = fields.Nested(lambda: WishlistSchema(only=('books',)))
     shoppingCart = fields.Nested(lambda: ShoppingCartSchema(only=('books',)))
+
+
 class ShoppingCartSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = ShoppingCart
@@ -186,7 +196,7 @@ class ShoppingCartSchema(ma.SQLAlchemyAutoSchema):
     
     user = fields.Nested(UserSchema)
     books = fields.Nested(BookSchema)
-    
+
 class WishlistSchema(ma.SQLAlchemyAutoSchema):
     
     class Meta:
@@ -209,6 +219,7 @@ class RatingSchema(ma.SQLAlchemyAutoSchema):
     book = fields.Nested(BookSchema)
     user = fields.Nested(UserSchema)
 
+
 class CommentSchema(ma.SQLAlchemyAutoSchema):
     
     class Meta:
@@ -218,4 +229,4 @@ class CommentSchema(ma.SQLAlchemyAutoSchema):
 
     book = fields.Nested(BookSchema)
     user = fields.Nested(UserSchema)
-    
+
