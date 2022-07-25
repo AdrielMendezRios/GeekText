@@ -27,8 +27,8 @@ class Book(db.Model):
     publisher       = db.Column(db.String(100), nullable=True)
     wishlists       = db.Column(db.Integer,     db.ForeignKey('wishlists.id'), nullable=True)
     shoppingCarts   = db.Column(db.Integer,     db.ForeignKey('shoppingCarts.id'), nullable=True)
-    ratings         = db.relationship('Rating', backref='book')
-    comments        = db.relationship('Comment', backref='book')
+    #ratings         = db.relationship('Rating', backref='book')
+    #comments        = db.relationship('Comment', backref='book')
     
     
     # helper function to format date for as_dict function
