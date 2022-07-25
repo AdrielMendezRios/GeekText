@@ -65,9 +65,12 @@ def get_user():
 
 # route that returns all credit cards for a user given the users username
 @api.route("/credit-cards", methods=['GET'])
-def get_credit_cards():
-    username = request.json['username']
-    user = User.query.filter_by(username=username).first()
+@token_required
+def get_credit_cards(username):
+    user_name = request.json['username']
+    user = User.query.filter_by(username=user_name).first()
+    if username != user_name:
+        return jsonify({"Error": "you are not authorized to view this data"}), HTTPStatus.UNAUTHORIZED
     if user is None:
         return jsonify(msg={"Error":f"User with username:{username}, does not exist."}), HTTPStatus.NOT_FOUND
     credit_cards = CreditCard.query.filter_by(user_id=user.id).all()
@@ -76,8 +79,11 @@ def get_credit_cards():
 
 # create endpoint that adds a new credit card to the users creditCard column
 @api.route("/add-cc", methods=['POST'])
-def add_cc():
+@token_required
+def add_cc(username):
     user = User.query.filter_by(username=request.json['username']).first()
+    if username != user.username:
+        return jsonify({"Error": "You are not authorized to add a credit card to this user."}), HTTPStatus.UNAUTHORIZED
     if user is None:
         return jsonify({"Error":"User does not exist."}), HTTPStatus.NOT_FOUND
     cc = request.json['credit_card']
@@ -95,9 +101,12 @@ def add_cc():
 
 # define endpoint that retrieves the first credit card for a user
 @api.route("/get-cc", methods=['GET'])
-def get_cc():
-    username = request.json['username']
-    user = User.query.filter_by(username=username).first()
+@token_required
+def get_cc(username):
+    user_name = request.json['username']
+    user = User.query.filter_by(username=user_name).first()
+    if username != user_name:
+        return jsonify({"Error": f"You do not have access to this information"}), HTTPStatus.UNAUTHORIZED
     if user is None:
         return jsonify({"Error":f"User with username:{username}, does not exist."}), HTTPStatus.NOT_FOUND
     credit_card = CreditCard.query.filter_by(user_id=user.id).first()
