@@ -122,7 +122,7 @@ class CreditCard(db.Model):
     
     id                 = db.Column(db.Integer, primary_key=True, unique=True)
     user_id            = db.Column(db.Integer,db.ForeignKey('users.id'), nullable=True)
-    credit_card         = db.Column(db.String(50), nullable=True)
+    credit_card         = db.Column(db.String(50), nullable=True) 
 
 class Rating(db.Model):
     __tablename__ ='ratings'
