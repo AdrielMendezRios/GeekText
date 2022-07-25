@@ -14,7 +14,7 @@ import json
 from flask import request, jsonify, Blueprint, make_response
 
 # add your models to the models.py file then import them here
-from ..models import db, Book, Author, ma, BookSchema, User, UserSchema
+from ..models import db, Book, Author, ma, BookSchema, User, UserSchema, CreditCard, CreditCardSchema
 from dateutil.parser import parse
 from http import HTTPStatus
 
@@ -29,7 +29,7 @@ from ..cache import cache
 # update name-> V-----V     
 api = Blueprint('profile_management_routes', __name__)
 
-@api.route("/createuser", methods=['POST'])
+@api.route("/create-user", methods=['POST'])
 def add_user():
     data = request.get_json()
     hashed_password = generate_password_hash(data['password'], method='sha256')
@@ -39,7 +39,7 @@ def add_user():
     db.session.commit()
     return jsonify({"user":user.as_dict()}), 200
 
-@api.route("/gettoken", methods=['POST'])
+@api.route("/get-token", methods=['POST'])
 def login():
     from ..app import app
     auth = request.authorization  
@@ -63,3 +63,45 @@ def get_user():
         return jsonify(msg={"Error":f"User with id:{id}, does not exist."}), HTTPStatus.NOT_FOUND
     return jsonify(msg={"in": user.as_dict()}), HTTPStatus.ACCEPTED
 
+# route that returns all credit cards for a user given the users username
+@api.route("/credit-cards", methods=['GET'])
+def get_credit_cards():
+    username = request.json['username']
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        return jsonify(msg={"Error":f"User with username:{username}, does not exist."}), HTTPStatus.NOT_FOUND
+    credit_cards = CreditCard.query.filter_by(user_id=user.id).all()
+    credit_cards_schema = CreditCardSchema(many=True)
+    return jsonify(credit_cards_schema.dump(credit_cards)), HTTPStatus.ACCEPTED
+
+# create endpoint that adds a new credit card to the users creditCard column
+@api.route("/add-cc", methods=['POST'])
+def add_cc():
+    user = User.query.filter_by(username=request.json['username']).first()
+    if user is None:
+        return jsonify({"Error":"User does not exist."}), HTTPStatus.NOT_FOUND
+    cc = request.json['credit_card']
+    creditCard = CreditCard(user=user, credit_card=cc)
+    
+    try:
+        db.session.add(creditCard)
+        db.session.commit()
+    except Exception as e:
+        print("Error: ", e)
+        return jsonify({"Error":f"Error adding credit card to user:{user.username}"}), HTTPStatus.NOT_FOUND
+    schema = CreditCardSchema()
+    credit_cards_schema = CreditCardSchema()
+    return jsonify(credit_cards_schema.dump(creditCard)), HTTPStatus.ACCEPTED
+
+# define endpoint that retrieves the first credit card for a user
+@api.route("/get-cc", methods=['GET'])
+def get_cc():
+    username = request.json['username']
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        return jsonify({"Error":f"User with username:{username}, does not exist."}), HTTPStatus.NOT_FOUND
+    credit_card = CreditCard.query.filter_by(user_id=user.id).first()
+    credit_cards_schema = CreditCardSchema()
+    return jsonify(credit_cards_schema.dump(credit_card)), HTTPStatus.ACCEPTED
+
+# {f"New Credit Card added": creditCard.credit_card, "user":user.username}

@@ -1,11 +1,12 @@
 from collections import UserList
+from csv import unregister_dialect
 from dataclasses import fields
 from flask_sqlalchemy import SQLAlchemy
 from datetime import  date
 from flask_marshmallow import Marshmallow
 from marshmallow import ValidationError, validates, RAISE, fields, pprint
 from pyparsing import dblSlashComment
-from sqlalchemy import false
+from sqlalchemy import PrimaryKeyConstraint, false
 
 
 db = SQLAlchemy()
@@ -104,7 +105,7 @@ class User(db.Model):
     emailAddress        = db.Column(db.String(50), nullable=True)
     homeAddress         = db.Column(db.String(100), nullable=True)
     password            = db.Column(db.String(50), nullable=True)
-    creditCard          = db.Column(db.String(50), nullable=True)
+    credit_card          = db.relationship('CreditCard', backref='user')
 
 
 
@@ -116,8 +117,12 @@ class User(db.Model):
         return f"{self.username}, isAdmin: {self.isAdmin}"
 
 
-    def __repr__(self):
-        return f""
+class CreditCard(db.Model):
+    __tablename__ = 'creditCards'
+    
+    id                 = db.Column(db.Integer, primary_key=True, unique=True)
+    user_id            = db.Column(db.Integer,db.ForeignKey('users.id'), nullable=True)
+    credit_card         = db.Column(db.String(50), nullable=True)
 
 class Rating(db.Model):
     __tablename__ ='ratings'
@@ -197,7 +202,16 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
         creditCard_cleaned = val.translate({ord("-"):None, ord(" "): None }) # remove "-" and spaces from creditCard string
         if not creditCard_cleaned.isnumeric():
             raise ValidationError(f"Invalid Credit Card: {val}. must be a string containing ONLY numbers, '-' or a spaces ")
-            
+
+class CreditCardSchema(ma.SQLAlchemyAutoSchema):
+    
+    class Meta:
+        model = CreditCard
+        include_relationships = True
+        include_fk = True
+        unknown = RAISE
+    
+    user = fields.Nested('UserSchema', only=('username',))
 class ShoppingCartSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = ShoppingCart
