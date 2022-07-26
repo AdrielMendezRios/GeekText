@@ -20,6 +20,7 @@ from http import HTTPStatus
 
 # keep this if an endpoint requires caching 
 from ..cache import cache
+from ..auth import token_required, admin_required
 
 # update name-> V-----V     
 api = Blueprint('shopping_cart_routes', __name__)
@@ -32,8 +33,11 @@ def routeFunction():
     return jsonify(message={"Success": f"Blueprint {api.name} configured!"})
 
 
-@api.route("/shopping_cart", methods=['POST'])  
-def add_shopping_cart():
+@api.route("/shopping_cart", methods=['POST'])
+@token_required
+def add_shopping_cart(username):
+    if username != request.json['username']:
+        return jsonify(message={"Error": "Username provided does not match token"}), HTTPStatus.UNAUTHORIZED
     username = request.json['username']
     user = User.query.filter_by(username=username).first()
     shopping_cart = ShoppingCart(user=user)
@@ -44,27 +48,29 @@ def add_shopping_cart():
     except Exception as e:
         return jsonify({"Error": "something went wrong"}), 500
 
-    return jsonify({"user": user.as_dict(), "shopping cart": shopping_cart.as_dict()}), 200
+    return jsonify(ShoppingCart={"user": user.username, "shopping cart": shopping_cart.books}), 200
 
-@api.route("/adduser", methods=['POST'])
-def adduser():
-    user = User(**request.json)
-    db.session.add(user)
-    db.session.commit()
-    return jsonify({"user": user.as_dict()}), 200    
+# @api.route("/adduser", methods=['POST'])
+# def adduser():
+#     user = User(**request.json)
+#     db.session.add(user)
+#     db.session.commit()
+#     return jsonify({"user": user.as_dict()}), 200    
 
 @api.route("/shopping_cart", methods=['PUT'])
-def update_shopping_cart():
+@token_required
+def update_shopping_cart(username):
     if not 'username' in request.json:
         return jsonify({"Error": "Did not provide username in request body"}), 500
     if not 'isbn' in request.json:
-        return jsonify({"Error": "Did not provide isbn in request body"}), 500   
+        return jsonify({"Error": "Did not provide isbn in request body"}), 500  
+
     username=request.json['username']
     isbn=request.json['isbn']
-
-
+    
     user = User.query.filter_by(username=username).first()
     book = Book.query.filter_by(isbn=isbn).first()
+
 
     if user.shoppingCart is None:
         shopping_cart = ShoppingCart(user=user,book=book)
@@ -91,8 +97,9 @@ def update_shopping_cart():
 
     return jsonify({"shopping_cart":books}), 200      
 
-@api.route("/deletebook", methods=['PUT'])
-def delete_book():
+@api.route("/delete-book", methods=['PUT'])
+@token_required
+def delete_book(username):
     if not 'username' in request.json:
         return jsonify({"Error": "Did not provide username in request body"}), 500
     if not 'isbn' in request.json:
@@ -110,7 +117,7 @@ def delete_book():
         return jsonify(message={"Error": "Username given does not have a shopping cart"})
     shoppingcart = ShoppingCart.query.get(user.shoppingCart.id)
     
-   
+
 
     books = shoppingcart.books
 
@@ -125,7 +132,7 @@ def delete_book():
     schema = ShoppingCartSchema()
     return jsonify({"You removed this book from your shopping cart":deletedbook.as_dict()}), 200
 
-@api.route("/retrieve_shopping_cart", methods = ['GET'])   
+@api.route("/get_shopping_cart", methods = ['GET'])   
 def retrieve_shopping_cart():
     if not 'username' in request.json:
         return jsonify(message={"Error": "Did not provide username in request body"}), HTTPStatus.NOT_FOUND

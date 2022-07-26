@@ -27,8 +27,8 @@ class Book(db.Model):
     publisher       = db.Column(db.String(100), nullable=True)
     wishlists       = db.Column(db.Integer,     db.ForeignKey('wishlists.id'), nullable=True)
     shoppingCarts   = db.Column(db.Integer,     db.ForeignKey('shoppingCarts.id'), nullable=True)
-    #ratings         = db.relationship('Rating', backref='book')
-    #comments        = db.relationship('Comment', backref='book')
+    ratings         = db.relationship('Rating', backref='book')
+    comments        = db.relationship('Comment', backref='book')
     
     
     # helper function to format date for as_dict function
@@ -103,6 +103,11 @@ class User(db.Model):
     shoppingCart        = db.relationship('ShoppingCart', backref='user', uselist=False)
     comments            = db.relationship('Comment', backref='user')
     ratings             = db.relationship('Rating', backref='user')
+    emailAddress        = db.Column(db.String(50), nullable=True)
+    homeAddress         = db.Column(db.String(100), nullable=True)
+    password            = db.Column(db.String(50), nullable=True)
+    credit_card         = db.relationship('CreditCard', backref='user')
+
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -110,6 +115,13 @@ class User(db.Model):
     def __repr__(self) -> str:
         return f""
 
+class CreditCard(db.Model):
+    __tablename__ = 'creditCards'
+    
+    id                 = db.Column(db.Integer, primary_key=True, unique=True)
+    user_id            = db.Column(db.Integer,db.ForeignKey('users.id'), nullable=True)
+    credit_card         = db.Column(db.String(50), nullable=True) 
+    
 class Rating(db.Model):
     __tablename__ ='ratings'
     
@@ -172,6 +184,17 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
     
     wishlist = fields.Nested(lambda: WishlistSchema(only=('books',)))
     shoppingCart = fields.Nested(lambda: ShoppingCartSchema(only=('books',)))
+
+
+class CreditCardSchema(ma.SQLAlchemyAutoSchema):
+    
+    class Meta:
+        model = CreditCard
+        include_relationships = True
+        include_fk = True
+        unknown = RAISE
+    
+    user = fields.Nested('UserSchema', only=('username',))
     
 class ShoppingCartSchema(ma.SQLAlchemyAutoSchema):
     class Meta:

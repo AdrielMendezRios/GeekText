@@ -1,61 +1,55 @@
-from flask import Flask, url_for, redirect, render_template, request, jsonify
-from flask_migrate import Migrate
-from .models import db, Book, Author, ma, BookSchema, AuthorSchema
-from dateutil.parser import parse
+from functools import wraps
+from flask import request, jsonify
+import jwt
 from http import HTTPStatus
-from .cache import cache
 
-# import blueprint api routes below
-# from .api.blueprintTemplate import api as whateverIcalledItHere
-from .api.book_routes import api as book_routes
-from .api.author_routes import api as author_routes
-from .api.shopping_cart import api as shopping_cart_routes
+# from models import User
 
-# create flask app 
-app = Flask(__name__)
+def token_required(f):
+    @wraps(f)
+    def decorator(*args, **kwargs):
+        token = None
+        if 'Authorization' in request.headers:
+            token = request.headers['Authorization']
+
+        if not token:
+            return jsonify({'message': 'a valid token is missing'})
+        try:
+            from .app import app
+            from .models import User
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            current_user = User.query.filter_by(username=data['username']).first()
+        except:
+            return jsonify({'message': 'token is invalid'})
+
+        return f(current_user, *args, **kwargs)
+
+    return decorator
 
 
-# Register route blueprints below
-# app.register_blueprint(whateverIcalledItHere)
-app.register_blueprint(book_routes)
-app.register_blueprint(author_routes)
-app.register_blueprint(shopping_cart_routes)
+def admin_required(f):
+    @wraps(f)
+    def decorator(*args, **kwargs):
+        token = None
+        if 'Authorization' in request.headers:
+            token = request.headers['Authorization']
 
-# config cache
-app.config['CACHE_TYPE'] = 'simple'
+            
+        if not token:
+            return jsonify({'msg':'a valid token is missing'})
 
-# database configs
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+        try:
+            from .app import app
+            from .models import User
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            current_user = User.query.filter_by(username=data['username']).first()
+            if not current_user.isAdmin:
+                return jsonify({'message': 'user is not an Admin'}), HTTPStatus.UNAUTHORIZED
+        except Exception as e:
+            print("exception: ", e)
+            return jsonify({'message': 'token provided is invalid'}), HTTPStatus.UNAUTHORIZED
 
-# migrate config
-migrate = Migrate(app, db, render_as_batch=True)
+        return f(current_user, *args, **kwargs)
 
-# init database, Marshmallow & cache
-db.init_app(app)
-ma.init_app(app)
-cache.init_app(app)
 
-# place holder for eventual user auth
-isAdmin = True  # just in the mean time...
-
-@app.route("/")
-def home():
-    db.session.rollback()
-    books = db.session.query(Book).all()
-    authors = db.session.query(Author).all()
-    return render_template("index.html", books=books, authors=authors)
-
-# something went really bad
-@app.errorhandler(500)
-def internal_error(error):
-    db.session.rollback()
-    return jsonify(error_msg={"code":error.code, "description": error.description}), HTTPStatus.INTERNAL_SERVER_ERROR
-
-# for undefined endpoints
-@app.errorhandler(404)
-def not_found_error(error):
-    return jsonify(error_msg={"code":error.code, "description": error.description}), HTTPStatus.NOT_FOUND
-
-if __name__ == "__main__":
-    app.run()
+    return decorator

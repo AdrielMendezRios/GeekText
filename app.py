@@ -14,6 +14,7 @@ from .api.shopping_cart import api as shopping_cart_routes
 # create flask app 
 app = Flask(__name__)
 
+app.config['SECRET_KEY'] = "SECRET!"
 
 # Register route blueprints below
 # app.register_blueprint(whateverIcalledItHere)
