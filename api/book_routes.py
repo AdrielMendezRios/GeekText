@@ -19,47 +19,6 @@ import jwt
 
 api = Blueprint('book_routes', __name__)
 
-isAdmin = True
-
-# for testing
-@api.route("/user", methods=['POST'])
-def add_user():
-    data = request.get_json()
-    hashed_password = generate_password_hash(data['password'], method='sha256')
-    data['password'] = hashed_password
-    user = User(**data)
-    db.session.add(user)
-    db.session.commit()
-    return jsonify({"user":user.as_dict()}), 200
-
-
-@api.route("/login", methods=['POST'])
-def login():
-    from ..app import app
-    auth = request.authorization
-    if not auth or not auth.username or not auth.password:
-        return make_response('could not verify', 401, {'Authentication': 'login required"'})
-
-    user = User.query.filter_by(username=auth.username).first()
-    print(check_password_hash(user.password, auth.password))
-
-    if check_password_hash(user.password, auth.password):
-        token = jwt.encode({'username' : user.username, 'id': user.id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=1000)}, app.config['SECRET_KEY'], "HS256")
-
-        return jsonify({'token' : token})
-
-    return make_response('could not verify',  401, {'Authentication': '"login required"'})
-
-
-# create an endpoint to get all users
-@api.route("/users", methods=['GET'])
-def get_users():
-    users = User.query.all()
-    users_schema = UserSchema(many=True)
-    result = users_schema.dump(users)
-    return jsonify(result)
-
-
 
 # POST (create) book
 @api.route("/books", methods=['POST'])
@@ -134,60 +93,60 @@ def add_book(username):
             json response: returns a json error message
         
     """
-    if isAdmin:
-        # copy json into req_data
-        body = dict(request.json)
+    
+    # copy json into req_data
+    body = dict(request.json)
+    
+    #validate request body data
+    schema = BookSchema()
+    invalid_msg = schema.validate(body)
+    if invalid_msg:
+        return jsonify(invalid_msg), HTTPStatus.BAD_REQUEST
+    
+    # convert date_published string to python date obj
+    body['date_published'] = parse(body['date_published']).date()
         
-        #validate request body data
-        schema = BookSchema()
-        invalid_msg = schema.validate(body)
-        if invalid_msg:
-            return jsonify(invalid_msg), HTTPStatus.BAD_REQUEST
-        
-        # convert date_published string to python date obj
-        body['date_published'] = parse(body['date_published']).date()
-            
-        # check if ID is present in body. if so, check if there exists a book with that ID already
-        if 'id' in body:
-            book = Book.query.get(body['id'])
-            if book is not None:
-                return jsonify(message={"Error":f"Book with ID:{body['id']} already exists"}), HTTPStatus.BAD_REQUEST
-        
-        # check if isbn already exist
-        if 'isbn' in body:
-            book = Book.query.filter_by(isbn=body['isbn']).first()
-            if book is not None:
-                return jsonify(
-                    message={"Error":f"Book with ISBN:{body['isbn']} already exists."}), HTTPStatus.FORBIDDEN
-        
+    # check if ID is present in body. if so, check if there exists a book with that ID already
+    if 'id' in body:
+        book = Book.query.get(body['id'])
+        if book is not None:
+            return jsonify(message={"Error":f"Book with ID:{body['id']} already exists"}), HTTPStatus.BAD_REQUEST
+    
+    # check if isbn already exist
+    if 'isbn' in body:
+        book = Book.query.filter_by(isbn=body['isbn']).first()
+        if book is not None:
+            return jsonify(
+                message={"Error":f"Book with ISBN:{body['isbn']} already exists."}), HTTPStatus.FORBIDDEN
+    
 
+    
+    # temp vars if body has 'first_name' AND 'last_name', then pop them from body
+    tmpfname = body.pop('first_name', None)
+    tmplname = body.pop('last_name', None)
+    
+    # create book obj
+    new_book = Book(**body)
+    
+    # add to authors books list
+    if 'author_id' in body:
+        author = Author.query.get(body['author_id'])
+        new_book.author = author
+    # check to see if body has first_name & last_name keys, if so create Author
+    elif tmpfname and tmplname:
+        author = Author(first_name=tmpfname, last_name=tmplname, publisher=body['publisher'])
+        new_book.author = author
         
-        # temp vars if body has 'first_name' AND 'last_name', then pop them from body
-        tmpfname = body.pop('first_name', None)
-        tmplname = body.pop('last_name', None)
-        
-        # create book obj
-        new_book = Book(**body)
-        
-        # add to authors books list
-        if 'author_id' in body:
-            author = Author.query.get(body['author_id'])
-            new_book.author = author
-        # check to see if body has first_name & last_name keys, if so create Author
-        elif tmpfname and tmplname:
-            author = Author(first_name=tmpfname, last_name=tmplname, publisher=body['publisher'])
-            new_book.author = author
-            
-        
-        try:
-            db.session.add(new_book)
-            db.session.commit()
-            return jsonify(new_book.as_dict()), HTTPStatus.CREATED # 201
-        except Exception as e:
-            if e.__class__ is IntegrityError:
-                db.session.rollback()
-                return jsonify(message={"Error":"fatal error. Rolling back db session."})
-            return jsonify(message={"Error": e}), HTTPStatus.INTERNAL_SERVER_ERROR
+    
+    try:
+        db.session.add(new_book)
+        db.session.commit()
+        return jsonify(new_book.as_dict()), HTTPStatus.CREATED # 201
+    except Exception as e:
+        if e.__class__ is IntegrityError:
+            db.session.rollback()
+            return jsonify(message={"Error":"fatal error. Rolling back db session."})
+        return jsonify(message={"Error": e}), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 # GET a book by ISBN

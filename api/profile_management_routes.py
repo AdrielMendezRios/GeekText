@@ -47,6 +47,8 @@ def login():
         return make_response('could not verify', 401, {'Authentication': 'login required"'})   
 
     user = User.query.filter_by(username=auth.username).first() 
+    if not user:
+        return jsonify({"message":"user not found"}), 404
     print(check_password_hash(user.password, auth.password)) 
     if check_password_hash(user.password, auth.password):
         token = jwt.encode({'username' : user.username, 'id': user.id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=1000)}, app.config['SECRET_KEY'], "HS256")
