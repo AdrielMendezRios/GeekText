@@ -82,7 +82,7 @@ def add_author(username):
 @api.route("/authors/<id>", methods=['GET'])
 @cache.cached(timeout=5)
 @token_required
-def author_details(id):
+def author_details(username,id):
     """ This endpoint returns an author
         HTTP Method: GET
         Headers:
