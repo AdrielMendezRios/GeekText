@@ -36,13 +36,15 @@ def get_wishlist(username, user_id):
 
     user = User.query.get(user_id)
 
+    if not user:
+        return jsonify({"Error": "No user exists"}), 404
+
     if user.wishlist is None:
         return jsonify({"Error": "No wishlist exists for user"})
 
     wishlist = Wishlist.query.get(user.wishlist.id)
 
-    if not user:
-        return jsonify({"Error": "No user exists"}), 404
+
 
     if not wishlist:
         return jsonify({"Error": "No wishlist exists"}), 404
