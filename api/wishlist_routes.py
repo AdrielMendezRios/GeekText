@@ -59,7 +59,10 @@ def get_wishlist(username, user_id):
 def add_wishlist(username):
 
     user = User.query.get(request.json['user_id'])
-
+    
+    if not user:
+        return jsonify({"Error": "No user exists"}), 404
+    
     if user.wishlist:
         return jsonify({"Error": "User already has a wishlist"})
 
@@ -81,7 +84,10 @@ def add_wishlist(username):
 def add_book(username):
 
     user = User.query.filter_by(username=request.json['username']).first()
-
+    
+    if not user:
+        return jsonify({"Error": "No user exists"}), 404
+    
     if user.wishlist is None:
         return jsonify({"Error": "User does not have a wishlist"})
 
