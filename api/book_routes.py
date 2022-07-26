@@ -32,6 +32,7 @@ def add_user():
     db.session.commit()
     return jsonify({"user":user.as_dict()}), 200
 
+
 @api.route("/login", methods=['POST'])
 def login():
     from ..app import app
@@ -49,6 +50,7 @@ def login():
 
     return make_response('could not verify',  401, {'Authentication': '"login required"'})
 
+
 # create an endpoint to get all users
 @api.route("/users", methods=['GET'])
 def get_users():
@@ -56,6 +58,7 @@ def get_users():
     users_schema = UserSchema(many=True)
     result = users_schema.dump(users)
     return jsonify(result)
+
 
 
 # POST (create) book

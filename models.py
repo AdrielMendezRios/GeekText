@@ -9,6 +9,7 @@ from pyparsing import dblSlashComment
 from sqlalchemy import PrimaryKeyConstraint, false
 
 
+
 db = SQLAlchemy()
 ma = Marshmallow()
 
@@ -109,6 +110,7 @@ class User(db.Model):
 
 
 
+
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
     
@@ -150,7 +152,37 @@ class Comment(db.Model):
     def __repr__(self) -> str:
         return f""
 
-    def __repr__(self):
+
+class CreditCard(db.Model):
+    __tablename__ = 'creditCards'
+    
+    id                 = db.Column(db.Integer, primary_key=True, unique=True)
+    user_id            = db.Column(db.Integer,db.ForeignKey('users.id'), nullable=True)
+    credit_card         = db.Column(db.String(50), nullable=True) 
+    
+class Rating(db.Model):
+    __tablename__ ='ratings'
+    
+    id              = db.Column(db.Integer, primary_key=True, unique=True)
+    book_id         = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    rating          = db.Column(db.Integer)
+    
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    
+class Comment(db.Model):
+    __tablename__ = 'comments'
+    
+    id              = db.Column(db.Integer, primary_key=True, unique=True)
+    book_id         = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    comment_text    = db.Column(db.String(200))
+    
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+    def __repr__(self) -> str:
         return f""
 
 """
@@ -197,11 +229,13 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
     shoppingCart = fields.Nested(lambda: ShoppingCartSchema(only=('books',)))
 
 
+
     @validates('creditCard')
     def validate_creditCard(self, val):
         creditCard_cleaned = val.translate({ord("-"):None, ord(" "): None }) # remove "-" and spaces from creditCard string
         if not creditCard_cleaned.isnumeric():
             raise ValidationError(f"Invalid Credit Card: {val}. must be a string containing ONLY numbers, '-' or a spaces ")
+
 
 class CreditCardSchema(ma.SQLAlchemyAutoSchema):
     
@@ -212,6 +246,8 @@ class CreditCardSchema(ma.SQLAlchemyAutoSchema):
         unknown = RAISE
     
     user = fields.Nested('UserSchema', only=('username',))
+
+
 class ShoppingCartSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = ShoppingCart
