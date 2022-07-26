@@ -45,7 +45,6 @@ def get_wishlist(username, user_id):
     wishlist = Wishlist.query.get(user.wishlist.id)
 
 
-
     if not wishlist:
         return jsonify({"Error": "No wishlist exists"}), 404
 
@@ -54,7 +53,7 @@ def get_wishlist(username, user_id):
     return jsonify(message={f"{user.username}'s Wishlist ": books}), 200
 
 
-# Creating a user with a wishlist and a shopping cart
+# Creating a wishlist for a user
 @api.route("/add/wishlist", methods=['POST'])
 @token_required
 def add_wishlist(username):
@@ -108,19 +107,16 @@ def add_book(username):
 @token_required
 def remove_book(username, user_id, isbn):
 
-    shopping_cart = None
     user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({"Error": "No user exists"}), 404
 
     if user.wishlist is None:
         return jsonify({"Error": "No wishlist exist for user"})
 
     wishlist = Wishlist.query.get(user.wishlist.id)
     book = Book.query.filter_by(isbn=isbn).first()
-
-    if user.shoppingCart is None:
-        shopping_cart = ShoppingCart(user=user)
-
-    shopping_cart = ShoppingCart.query.get(user.shoppingCart.id)
 
     if not wishlist:
         return jsonify({"Error": "No wishlist exists"}), 404
@@ -130,12 +126,18 @@ def remove_book(username, user_id, isbn):
     elif book not in wishlist.books:
         return jsonify({"Error": "Book does not exist in wishlist"}), 404
 
-    user.shoppingCart.books.append(book)
+    if user.shoppingCart is None:
+        shopping_cart = ShoppingCart(user=user)
+        shopping_cart.books.append(book)
+        db.session.add(shopping_cart)
+        db.session.commit()
+    else:
+        user.shoppingCart.books.append(book)
+
     wishlist.books.remove(book)
     db.session.commit()
 
     books = [book.as_dict() for book in wishlist.books]
-    shopping_cart_books = [book.as_dict() for book in shopping_cart.books]
+    shopping_cart_books = [book.as_dict() for book in user.shoppingCart.books]
 
-    return jsonify({f"{user.username}'s Wishlist": books, "Book to Remove": book.as_dict(), f"{user.username}'s Shopping Cart": shopping_cart_books}), 200
-
+    return jsonify({f"{user.username}'s Wishlist": books, "Book to Remove": book.as_dict(), f"{user.username}'s Shopping Cart": shopping_cart_books}), 200 
