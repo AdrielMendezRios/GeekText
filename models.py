@@ -76,7 +76,7 @@ class Wishlist(db.Model):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
     
     def __repr__(self) -> str:
-            return f""
+            return f"id: {self.id}, user_id: {self.user_id}"
 
 class ShoppingCart(db.Model):
     __tablename__ = 'shoppingCarts'
@@ -89,7 +89,7 @@ class ShoppingCart(db.Model):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
     
     def __repr__(self) -> str:
-        return f""
+        return f"id: {self.id}, user_id: {self.user_id}"
     
 class User(db.Model):
     __tablename__ = 'users'
@@ -103,7 +103,7 @@ class User(db.Model):
     shoppingCart        = db.relationship('ShoppingCart', backref='user', uselist=False)
     comments            = db.relationship('Comment', backref='user')
     ratings             = db.relationship('Rating', backref='user')
-    emailAddress        = db.Column(db.String(50), nullable=True)
+    # emailAddress        = db.Column(db.String(50), nullable=True)
     homeAddress         = db.Column(db.String(100), nullable=True)
     password            = db.Column(db.String(50), nullable=True)
     credit_card          = db.relationship('CreditCard', backref='user')
@@ -149,8 +149,8 @@ class Comment(db.Model):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
-    def __repr__(self) -> str:
-        return f""
+    def __repr__(self):
+        return f"id:{self.id}, book_id:{self.book_id}, user_id:{self.user_id}, comment_text:{self.comment_text}"
 
 
 class CreditCard(db.Model):
@@ -183,7 +183,7 @@ class Comment(db.Model):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
     def __repr__(self) -> str:
-        return f""
+        return f"id: {self.id}, book_id: {self.book_id}, user_id: {self.user_id}, comment_text: {self.comment_text}"
 
 """
     the class below are Marshmallow schema classes for the sqlalchemy classes above.
