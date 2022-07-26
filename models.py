@@ -153,38 +153,6 @@ class Comment(db.Model):
         return f"id:{self.id}, book_id:{self.book_id}, user_id:{self.user_id}, comment_text:{self.comment_text}"
 
 
-# class CreditCard(db.Model):
-#     __tablename__ = 'creditCards'
-    
-#     id                 = db.Column(db.Integer, primary_key=True, unique=True)
-#     user_id            = db.Column(db.Integer,db.ForeignKey('users.id'), nullable=True)
-#     credit_card         = db.Column(db.String(50), nullable=True) 
-    
-# class Rating(db.Model):
-#     __tablename__ ='ratings'
-    
-#     id              = db.Column(db.Integer, primary_key=True, unique=True)
-#     book_id         = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
-#     user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-#     rating          = db.Column(db.Integer)
-    
-#     def as_dict(self):
-#         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
-    
-# class Comment(db.Model):
-#     __tablename__ = 'comments'
-    
-#     id              = db.Column(db.Integer, primary_key=True, unique=True)
-#     book_id         = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
-#     user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-#     comment_text    = db.Column(db.String(200))
-    
-#     def as_dict(self):
-#         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
-
-#     def __repr__(self) -> str:
-#         return f"id: {self.id}, book_id: {self.book_id}, user_id: {self.user_id}, comment_text: {self.comment_text}"
-
 """
     the class below are Marshmallow schema classes for the sqlalchemy classes above.
     i use them for validation but can also be used for (de)serializing the ORM objects
