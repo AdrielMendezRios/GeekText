@@ -1,11 +1,13 @@
 from collections import UserList
+from csv import unregister_dialect
 from dataclasses import fields
 from flask_sqlalchemy import SQLAlchemy
 from datetime import  date
 from flask_marshmallow import Marshmallow
 from marshmallow import ValidationError, validates, RAISE, fields, pprint
 from pyparsing import dblSlashComment
-from sqlalchemy import false
+from sqlalchemy import PrimaryKeyConstraint, false
+
 
 
 db = SQLAlchemy()
@@ -29,8 +31,7 @@ class Book(db.Model):
     shoppingCarts   = db.Column(db.Integer,     db.ForeignKey('shoppingCarts.id'), nullable=True)
     ratings         = db.relationship('Rating', backref='book')
     comments        = db.relationship('Comment', backref='book')
-    
-    
+
     # helper function to format date for as_dict function
     def set_value(self, name):
         val = getattr(self, name)
@@ -39,7 +40,7 @@ class Book(db.Model):
         return val
 
     def as_dict(self):
-        return {c.name: self.set_value(c.name) for c in self.__table__.columns}
+        return {c.name: self.set_value(c.name) for c in self.__table__.columns if c.name not in ['wishlists', 'shoppingCarts']}
 
     def __repr__(self) -> str:
         return f"{self.title} by {str.title(self.author.last_name)}, {str.title(self.author.first_name)} (ISBN: {self.isbn})"
@@ -65,8 +66,7 @@ class Author(db.Model):
 
 class Wishlist(db.Model):
     __tablename__ = 'wishlists'
-    
-    
+
     id                  = db.Column(db.Integer, primary_key=True, unique=True)
     user_id             = db.Column(db.Integer,db.ForeignKey('users.id'), nullable=True)
     books               = db.relationship('Book', backref='wishlist')
@@ -106,14 +106,52 @@ class User(db.Model):
     emailAddress        = db.Column(db.String(50), nullable=True)
     homeAddress         = db.Column(db.String(100), nullable=True)
     password            = db.Column(db.String(50), nullable=True)
-    credit_card         = db.relationship('CreditCard', backref='user')
+    credit_card          = db.relationship('CreditCard', backref='user')
+
+
 
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
     
+
+    def __repr__(self):
+        return f"{self.username}, isAdmin: {self.isAdmin}"
+
+
+class CreditCard(db.Model):
+    __tablename__ = 'creditCards'
+    
+    id                 = db.Column(db.Integer, primary_key=True, unique=True)
+    user_id            = db.Column(db.Integer,db.ForeignKey('users.id'), nullable=True)
+    credit_card         = db.Column(db.String(50), nullable=True) 
+
+class Rating(db.Model):
+    __tablename__ ='ratings'
+    
+    id              = db.Column(db.Integer, primary_key=True, unique=True)
+    book_id         = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    rating          = db.Column(db.Integer)
+    
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    
+class Comment(db.Model):
+    __tablename__ = 'comments'
+    
+    id              = db.Column(db.Integer, primary_key=True, unique=True)
+    book_id         = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    comment_text    = db.Column(db.String(200))
+    
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+
     def __repr__(self) -> str:
         return f""
+
 
 class CreditCard(db.Model):
     __tablename__ = 'creditCards'
@@ -155,7 +193,7 @@ class Comment(db.Model):
 class BookSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Book
-        include_relationships = True
+        include_relationships = False
         include_fk = True
         dateformat = '%Y-%m-%d'
         unknown = RAISE
@@ -165,6 +203,11 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
         isbn_cleaned = val.translate({ord("-"):None, ord(" "): None }) # remove "-" and spaces from isbn string
         if not isbn_cleaned.isnumeric():
             raise ValidationError(f"Invalid ISBN: {val}. must be a string containing ONLY numbers, '-' or a spaces ")
+    
+    # optional fields to create author if they are provided when creating book
+    first_name = fields.String()
+    last_name = fields.String()
+
 
 
 class AuthorSchema(ma.SQLAlchemyAutoSchema):
@@ -186,6 +229,14 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
     shoppingCart = fields.Nested(lambda: ShoppingCartSchema(only=('books',)))
 
 
+
+    @validates('creditCard')
+    def validate_creditCard(self, val):
+        creditCard_cleaned = val.translate({ord("-"):None, ord(" "): None }) # remove "-" and spaces from creditCard string
+        if not creditCard_cleaned.isnumeric():
+            raise ValidationError(f"Invalid Credit Card: {val}. must be a string containing ONLY numbers, '-' or a spaces ")
+
+
 class CreditCardSchema(ma.SQLAlchemyAutoSchema):
     
     class Meta:
@@ -195,7 +246,8 @@ class CreditCardSchema(ma.SQLAlchemyAutoSchema):
         unknown = RAISE
     
     user = fields.Nested('UserSchema', only=('username',))
-    
+
+
 class ShoppingCartSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = ShoppingCart
@@ -204,7 +256,7 @@ class ShoppingCartSchema(ma.SQLAlchemyAutoSchema):
     
     user = fields.Nested(UserSchema)
     books = fields.Nested(BookSchema)
-    
+
 class WishlistSchema(ma.SQLAlchemyAutoSchema):
     
     class Meta:
@@ -216,7 +268,6 @@ class WishlistSchema(ma.SQLAlchemyAutoSchema):
     books = fields.Nested(BookSchema)
 
 
-    
 class RatingSchema(ma.SQLAlchemyAutoSchema):
     
     class Meta:
@@ -227,6 +278,7 @@ class RatingSchema(ma.SQLAlchemyAutoSchema):
     book = fields.Nested(BookSchema)
     user = fields.Nested(UserSchema)
 
+
 class CommentSchema(ma.SQLAlchemyAutoSchema):
     
     class Meta:
@@ -236,3 +288,4 @@ class CommentSchema(ma.SQLAlchemyAutoSchema):
 
     book = fields.Nested(BookSchema)
     user = fields.Nested(UserSchema)
+
