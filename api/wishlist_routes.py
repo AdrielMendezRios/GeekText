@@ -140,4 +140,4 @@ def remove_book(username, user_id, isbn):
     books = [book.as_dict() for book in wishlist.books]
     shopping_cart_books = [book.as_dict() for book in user.shoppingCart.books]
 
-    return jsonify({f"{user.username}'s Wishlist": books, "Book to Remove": book.as_dict(), f"{user.username}'s Shopping Cart": shopping_cart_books}), 200 
+    return jsonify({f"{user.username}'s Wishlist": books, "Book Removed": book.as_dict(), f"{user.username}'s Shopping Cart": shopping_cart_books}), 200 
